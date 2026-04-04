@@ -4,14 +4,15 @@ import { ArrowLeft, Home, FileText, CheckSquare, MapPin, Calendar, Check } from 
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-export default async function BuyerSearchDetailPage({ params }: { params: { id: string } }) {
+export default async function BuyerSearchDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   const { data: search } = await supabase
     .from('buyer_searches')
     .select('*, buyer_offers(*), buyer_checklist_items(*)')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('owner_id', user!.id)
     .single()
 

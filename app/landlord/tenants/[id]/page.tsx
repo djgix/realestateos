@@ -4,20 +4,21 @@ import { ArrowLeft, Phone, Mail, MapPin, DollarSign, FileText, Wrench, MessageSq
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-export default async function TenantDetailPage({ params }: { params: { id: string } }) {
+export default async function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   const { data: tenant } = await supabase
     .from('tenants').select('*, properties(name, address, city, state)')
-    .eq('id', params.id).eq('owner_id', user!.id).single()
+    .eq('id', id).eq('owner_id', user!.id).single()
 
   if (!tenant) notFound()
 
   const [{ data: leases }, { data: payments }, { data: maintenance }] = await Promise.all([
-    supabase.from('leases').select('*').eq('tenant_id', params.id).order('created_at', { ascending: false }),
-    supabase.from('rent_payments').select('*').eq('tenant_id', params.id).order('due_date', { ascending: false }).limit(12),
-    supabase.from('maintenance_requests').select('*').eq('tenant_id', params.id).order('created_at', { ascending: false }).limit(5),
+    supabase.from('leases').select('*').eq('tenant_id', id).order('created_at', { ascending: false }),
+    supabase.from('rent_payments').select('*').eq('tenant_id', id).order('due_date', { ascending: false }).limit(12),
+    supabase.from('maintenance_requests').select('*').eq('tenant_id', id).order('created_at', { ascending: false }).limit(5),
   ])
 
   const statusColors: Record<string, string> = {
@@ -45,10 +46,10 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
           </div>
         </div>
         <div className="flex gap-2">
-          <Link href={`/landlord/messages?tenant=${params.id}`} className="btn-secondary">
+          <Link href={`/landlord/messages?tenant=${id}`} className="btn-secondary">
             <MessageSquare className="w-4 h-4" /> Message
           </Link>
-          <Link href={`/landlord/tenants/${params.id}/edit`} className="btn-secondary">
+          <Link href={`/landlord/tenants/${id}/edit`} className="btn-secondary">
             <Edit className="w-4 h-4" /> Edit
           </Link>
         </div>

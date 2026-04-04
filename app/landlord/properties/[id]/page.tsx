@@ -4,14 +4,15 @@ import { ArrowLeft, Building2, MapPin, Users, FileText, Wrench, DollarSign, Edit
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-export default async function PropertyDetailPage({ params }: { params: { id: string } }) {
+export default async function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   const { data: property } = await supabase
     .from('properties')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('owner_id', user!.id)
     .single()
 
@@ -24,11 +25,11 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
     { data: payments },
     { data: expenses },
   ] = await Promise.all([
-    supabase.from('tenants').select('*').eq('property_id', params.id).eq('status', 'active'),
-    supabase.from('leases').select('*, tenants(first_name, last_name)').eq('property_id', params.id).eq('status', 'active'),
-    supabase.from('maintenance_requests').select('*').eq('property_id', params.id).neq('status', 'completed').limit(5),
-    supabase.from('rent_payments').select('*').eq('property_id', params.id).order('due_date', { ascending: false }).limit(6),
-    supabase.from('expenses').select('*').eq('property_id', params.id).order('date', { ascending: false }).limit(5),
+    supabase.from('tenants').select('*').eq('property_id', id).eq('status', 'active'),
+    supabase.from('leases').select('*, tenants(first_name, last_name)').eq('property_id', id).eq('status', 'active'),
+    supabase.from('maintenance_requests').select('*').eq('property_id', id).neq('status', 'completed').limit(5),
+    supabase.from('rent_payments').select('*').eq('property_id', id).order('due_date', { ascending: false }).limit(6),
+    supabase.from('expenses').select('*').eq('property_id', id).order('date', { ascending: false }).limit(5),
   ])
 
   const monthlyRent = leases?.reduce((s, l) => s + l.monthly_rent, 0) || 0
@@ -48,7 +49,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
             </div>
           </div>
         </div>
-        <Link href={`/landlord/properties/${params.id}/edit`} className="btn-secondary">
+        <Link href={`/landlord/properties/${id}/edit`} className="btn-secondary">
           <Edit className="w-4 h-4" /> Edit
         </Link>
       </div>
@@ -76,7 +77,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
               <Users className="w-5 h-5 text-brand-400" /> 
               {tenants?.length ? 'Active Tenants' : 'Applicant Tracking (ATS)'}
             </h2>
-            <Link href={`/landlord/tenants/new?property=${params.id}`} className="btn-ghost text-xs">
+            <Link href={`/landlord/tenants/new?property=${id}`} className="btn-ghost text-xs">
               <Plus className="w-3.5 h-3.5" /> Add Manual
             </Link>
           </div>
@@ -120,7 +121,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
 
                 <div className="grid grid-cols-2 gap-2">
                   <button className="btn-secondary text-xs w-full justify-center py-2">View Full Report</button>
-                  <Link href={`/landlord/resolutions/lease?tenant_id=mock_applicant&property_id=${params.id}`} className="btn bg-brand-500 hover:bg-brand-400 text-white text-xs w-full justify-center py-2 shadow-lg shadow-brand-500/20">
+                  <Link href={`/landlord/resolutions/lease?tenant_id=mock_applicant&property_id=${id}`} className="btn bg-brand-500 hover:bg-brand-400 text-white text-xs w-full justify-center py-2 shadow-lg shadow-brand-500/20">
                     Generate Lease 
                   </Link>
                 </div>
@@ -147,7 +148,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="section-title mb-0">Active Leases</h2>
-            <Link href={`/landlord/leases/new?property=${params.id}`} className="btn-ghost text-xs">
+            <Link href={`/landlord/leases/new?property=${id}`} className="btn-ghost text-xs">
               <Plus className="w-3.5 h-3.5" /> New
             </Link>
           </div>
@@ -172,7 +173,7 @@ export default async function PropertyDetailPage({ params }: { params: { id: str
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="section-title mb-0">Open Maintenance</h2>
-            <Link href={`/landlord/maintenance/new?property=${params.id}`} className="btn-ghost text-xs">
+            <Link href={`/landlord/maintenance/new?property=${id}`} className="btn-ghost text-xs">
               <Plus className="w-3.5 h-3.5" /> New
             </Link>
           </div>
