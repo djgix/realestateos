@@ -281,24 +281,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../app/landlord/resolutions/[type]/page.tsx
-{
-  type __IsExpected<Specific extends AppPageConfig<"/landlord/resolutions/[type]">> = Specific
-  const handler = {} as typeof import("../../app/landlord/resolutions/[type]/page.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
-// Validate ../../app/landlord/resolutions/page.tsx
-{
-  type __IsExpected<Specific extends AppPageConfig<"/landlord/resolutions">> = Specific
-  const handler = {} as typeof import("../../app/landlord/resolutions/page.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
 // Validate ../../app/landlord/settings/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/landlord/settings">> = Specific
