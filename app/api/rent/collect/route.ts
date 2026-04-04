@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe, collectRent, toCents } from '@/lib/stripe'
+const toCents = (n: number) => Math.round(n * 100)
+import { collectRent } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
