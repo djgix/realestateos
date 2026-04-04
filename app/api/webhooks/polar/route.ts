@@ -36,7 +36,7 @@ export const POST = Webhooks({
         polar_order_id: checkout.id,
         product,
         plan: planName,
-        amount: checkout.totalAmount / 100,
+        amount: (checkout.totalAmount ?? 0) / 100,
         status: 'paid',
         paid_at: new Date().toISOString(),
       })
