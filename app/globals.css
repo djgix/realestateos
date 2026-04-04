@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { 
+    @apply bg-slate-950 text-slate-200 min-h-screen;
+    background-image: radial-gradient(circle at top right, rgba(79, 110, 247, 0.08), transparent 400px),
+                      radial-gradient(circle at bottom left, rgba(79, 110, 247, 0.03), transparent 400px);
+  }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.15); border-radius: 3px; }
+}
+
+@layer components {
+  /* Cards */
+  .card    { @apply bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl shadow-xl shadow-black/40; }
+  .card-sm { @apply bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-xl shadow-lg shadow-black/40; }
+
+  /* Buttons */
+  .btn          { @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer; }
+  .btn-primary  { @apply btn bg-brand-500 hover:bg-brand-400 text-white shadow-lg shadow-brand-500/20; }
+  .btn-landlord { @apply btn bg-landlord hover:bg-landlord-dark text-white shadow-lg shadow-landlord/20; }
+  .btn-seller   { @apply btn bg-seller hover:bg-seller-dark text-white shadow-lg shadow-seller/20; }
+  .btn-buyer    { @apply btn bg-buyer hover:bg-buyer-dark text-white shadow-lg shadow-buyer/20; }
+  .btn-secondary{ @apply btn bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700; }
+  .btn-ghost    { @apply btn hover:bg-slate-800 text-slate-400 hover:text-slate-200; }
+  .btn-danger   { @apply btn bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20; }
+
+  /* Forms */
+  .input    { @apply w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 text-sm outline-none transition-all focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10; }
+  .select   { @apply input appearance-none cursor-pointer; }
+  .textarea { @apply input resize-none; }
+  .label    { @apply block text-sm font-medium text-slate-400 mb-1.5; }
+  .form-group { @apply flex flex-col gap-1; }
+
+  /* Badge */
+  .badge { @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium; }
+
+  /* Layout */
+  .page-header   { @apply mb-8; }
+  .page-title    { @apply font-display text-3xl text-slate-100 mb-1; }
+  .page-subtitle { @apply text-slate-500 text-sm; }
+  .section-title { @apply text-lg font-semibold text-slate-200 mb-4; }
+  .stat-card     { @apply card p-6 flex flex-col gap-3; }
+  .divider       { @apply border-t border-slate-800; }
+
+  /* Nav */
+  .nav-item        { @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all duration-150; }
+  .nav-item-active { @apply nav-item text-slate-100 bg-slate-800; }
+
+  /* Easy Button */
+  .easy-btn { @apply card p-5 hover:border-slate-700 transition-all cursor-pointer flex items-start gap-4; }
+}
+
+@layer utilities {
+  .text-gradient-landlord { @apply bg-gradient-to-r from-brand-400 to-brand-400 bg-clip-text text-transparent; }
+  .text-gradient-seller   { @apply bg-gradient-to-r from-green-400 to-emerald-300 bg-clip-text text-transparent; }
+  .text-gradient-buyer    { @apply bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent; }
+  .glass { @apply bg-slate-900/80 backdrop-blur-xl; }
+  .glow-landlord { box-shadow: 0 0 40px rgba(79,110,247,0.15); }
+  .glow-seller   { box-shadow: 0 0 40px rgba(22,163,74,0.15); }
+  .glow-buyer    { box-shadow: 0 0 40px rgba(234,88,12,0.15); }
+}
