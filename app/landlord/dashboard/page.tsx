@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate, getDaysUntil } from '@/lib/utils'
 import { Plus, Building2, Users, Wrench, AlertTriangle, ArrowRight, DollarSign, Activity, MessageSquare, Clock } from 'lucide-react'
+import { FinancialChart } from '@/components/dashboard/FinancialChart'
 import Link from 'next/link'
 
 export default async function LandlordDashboard() {
@@ -123,6 +124,10 @@ export default async function LandlordDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* FINANCIAL CHART */}
         <div className="lg:col-span-2">
+          <div className="card p-6">
+            <h2 className="section-title mb-0">Financial Overview</h2>
+            <FinancialChart />
+          </div>
         </div>
 
         <div className="space-y-6">

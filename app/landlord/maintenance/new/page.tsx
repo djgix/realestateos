@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
-export default function NewMaintenancePage() {
+function NewMaintenanceContent() {
   const router = useRouter()
   const params = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -159,5 +159,13 @@ export default function NewMaintenancePage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function NewMaintenancePage() {
+  return (
+    <Suspense fallback={<div className="max-w-2xl mx-auto" />}>
+      <NewMaintenanceContent />
+    </Suspense>
   )
 }

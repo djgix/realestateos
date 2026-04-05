@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -7,7 +7,7 @@ import { US_STATES } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
-export default function NewTenantPage() {
+function NewTenantContent() {
   const router = useRouter()
   const params = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -122,5 +122,13 @@ export default function NewTenantPage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function NewTenantPage() {
+  return (
+    <Suspense fallback={<div className="max-w-2xl mx-auto" />}>
+      <NewTenantContent />
+    </Suspense>
   )
 }

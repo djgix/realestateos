@@ -1,12 +1,19 @@
 import Stripe from 'stripe'
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20',
-})
+let _stripe: Stripe | undefined
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: '2024-06-20',
+    })
+  }
+  return _stripe
+}
 
 // Create a Stripe Connect account for a landlord
 export async function createConnectAccount(email: string) {
-  const account = await stripe.accounts.create({
+  const account = await getStripe().accounts.create({
     type: 'express',
     email,
     capabilities: {
@@ -19,7 +26,7 @@ export async function createConnectAccount(email: string) {
 
 // Generate onboarding link for landlord to connect their bank
 export async function createAccountLink(accountId: string, baseUrl: string) {
-  const accountLink = await stripe.accountLinks.create({
+  const accountLink = await getStripe().accountLinks.create({
     account: accountId,
     refresh_url: `${baseUrl}/landlord/settings?stripe=refresh`,
     return_url:  `${baseUrl}/landlord/settings?stripe=success`,
@@ -30,7 +37,7 @@ export async function createAccountLink(accountId: string, baseUrl: string) {
 
 // Create a Stripe customer for a tenant
 export async function createTenantCustomer(email: string, name: string) {
-  const customer = await stripe.customers.create({ email, name })
+  const customer = await getStripe().customers.create({ email, name })
   return customer
 }
 
@@ -52,7 +59,7 @@ export async function collectRent({
 }) {
   const platformFee = Math.round(amount * (platformFeePercent / 100))
 
-  const paymentIntent = await stripe.paymentIntents.create({
+  const paymentIntent = await getStripe().paymentIntents.create({
     amount,
     currency: 'usd',
     customer: tenantCustomerId,
@@ -74,7 +81,7 @@ export async function collectRent({
 
 // Setup ACH payment method for tenant
 export async function createSetupIntent(tenantCustomerId: string) {
-  const setupIntent = await stripe.setupIntents.create({
+  const setupIntent = await getStripe().setupIntents.create({
     customer: tenantCustomerId,
     payment_method_types: ['us_bank_account'],
     usage: 'off_session',

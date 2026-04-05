@@ -1,6 +1,14 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+let _resend: Resend | undefined
+
+function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY)
+  }
+  return _resend
+}
+
 const FROM = process.env.RESEND_FROM || 'REALESTATEos <hello@realestateos.com>'
 const APP = process.env.NEXT_PUBLIC_APP_URL || 'https://realestateos.com'
 
@@ -22,7 +30,7 @@ export async function sendWelcome({ email, name, product }: { email: string; nam
     seller:   `${APP}/seller/dashboard`,
     buyer:    `${APP}/buyer/dashboard`,
   }
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM, to: email,
     subject: `Welcome to REALESTATEos, ${name}! 🏠`,
     html: base(`
@@ -40,7 +48,7 @@ export async function sendWelcome({ email, name, product }: { email: string; nam
 export async function sendLateRentAlert({ landlordEmail, tenantName, propertyName, amount, daysLate }: {
   landlordEmail: string; tenantName: string; propertyName: string; amount: number; daysLate: number
 }) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM, to: landlordEmail,
     subject: `⚠️ Late rent: ${tenantName} — ${daysLate} days overdue`,
     html: base(`
@@ -62,7 +70,7 @@ export async function sendLateRentAlert({ landlordEmail, tenantName, propertyNam
 export async function sendLeaseExpiry({ landlordEmail, tenantName, propertyName, expiryDate, daysLeft }: {
   landlordEmail: string; tenantName: string; propertyName: string; expiryDate: string; daysLeft: number
 }) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM, to: landlordEmail,
     subject: `📋 Lease expiring in ${daysLeft} days — ${tenantName}`,
     html: base(`
@@ -84,7 +92,7 @@ export async function sendLeaseExpiry({ landlordEmail, tenantName, propertyName,
 export async function sendRentReceipt({ tenantEmail, tenantName, amount, propertyName, period }: {
   tenantEmail: string; tenantName: string; amount: number; propertyName: string; period: string
 }) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM, to: tenantEmail,
     subject: `✅ Rent payment confirmed — ${period}`,
     html: base(`
@@ -104,7 +112,7 @@ export async function sendRentReceipt({ tenantEmail, tenantName, amount, propert
 export async function sendRentReminder({ tenantEmail, tenantName, amount, dueDate, propertyName }: {
   tenantEmail: string; tenantName: string; amount: number; dueDate: string; propertyName: string
 }) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM, to: tenantEmail,
     subject: `🏠 Rent reminder — due ${dueDate}`,
     html: base(`
@@ -123,7 +131,7 @@ export async function sendRentReminder({ tenantEmail, tenantName, amount, dueDat
 export async function sendMaintenanceUpdate({ tenantEmail, tenantName, title, status, scheduledDate }: {
   tenantEmail: string; tenantName: string; title: string; status: string; scheduledDate?: string
 }) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM, to: tenantEmail,
     subject: `🔧 Maintenance update: ${title}`,
     html: base(`
@@ -142,7 +150,7 @@ export async function sendMaintenanceUpdate({ tenantEmail, tenantName, title, st
 export async function sendOfferReceived({ sellerEmail, sellerName, buyerName, offerAmount, address }: {
   sellerEmail: string; sellerName: string; buyerName: string; offerAmount: number; address: string
 }) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM, to: sellerEmail,
     subject: `🎉 New offer received on ${address}`,
     html: base(`
@@ -164,7 +172,7 @@ export async function sendOfferReceived({ sellerEmail, sellerName, buyerName, of
 export async function sendDocumentReady({ email, name, docName, downloadUrl }: {
   email: string; name: string; docName: string; downloadUrl: string
 }) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM, to: email,
     subject: `📄 Your document is ready: ${docName}`,
     html: base(`

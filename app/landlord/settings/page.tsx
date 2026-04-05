@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { User, CreditCard, Bell, Shield, Building2, Check, Loader2, ExternalLink } from 'lucide-react'
@@ -11,7 +11,7 @@ const PLANS = [
   { id:'pro',     name:'Pro',     price:79, features:['Unlimited everything','Team access','Priority support','API access'] },
 ]
 
-export default function SettingsPage() {
+function SettingsContent() {
   const params = useSearchParams()
   const router = useRouter()
   const [tab, setTab] = useState(params.get('tab') || 'profile')
@@ -255,5 +255,13 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div />}>
+      <SettingsContent />
+    </Suspense>
   )
 }
