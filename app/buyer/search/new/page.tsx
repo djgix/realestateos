@@ -58,12 +58,12 @@ export default function NewBuyerSearchPage() {
       { phase: 'closing', task: 'Wire closing funds', description: 'Call title company directly to verify wire instructions.' },
       { phase: 'post_closing', task: 'Change all locks', description: 'You don\'t know who has copies of the old keys.' },
       { phase: 'post_closing', task: 'File for homestead exemption', description: 'Reduces property taxes — apply right away.' },
-    ].map(item => ({ ...item, owner_id: user!.id, search_id: data.id, completed: false }))
+    ].map(item => ({ ...item, owner_id: user!.id, search_id: data!.id, completed: false }))
 
     await supabase.from('buyer_checklist_items').insert(checklistItems)
 
     toast.success('Property added!')
-    router.push(`/buyer/search/${data.id}`)
+    router.push(`/buyer/search/${data!.id}`)
   }
 
   return (

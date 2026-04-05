@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Loader2, Check, Building2, Home, Search } from 'lucide-react'
@@ -12,7 +12,7 @@ const PRODUCTS = [
   { id:'buyer',    label:'BuyerOS',    sublabel:'Buying a home',   icon:Search,   color:'text-buyer',    border:'border-buyer/40 bg-buyer/5' },
 ]
 
-export default function SignupPage() {
+function SignupContent() {
   const router = useRouter()
   const params = useSearchParams()
   const [product, setProduct] = useState(params.get('product') || 'landlord')
@@ -139,5 +139,13 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950" />}>
+      <SignupContent />
+    </Suspense>
   )
 }

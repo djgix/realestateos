@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe, createConnectAccount, createAccountLink } from '@/lib/stripe'
+import { createConnectAccount, createAccountLink } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {

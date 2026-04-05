@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Loader2, Check, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -9,7 +9,7 @@ import Link from 'next/link'
 
 const STEPS = ['Property & Tenant', 'Lease Terms', 'Rent & Fees', 'Rules & Clauses', 'Review & Generate']
 
-export default function NewLeasePage() {
+function NewLeaseContent() {
   const router = useRouter()
   const params = useSearchParams()
   const [step, setStep] = useState(0)
@@ -78,7 +78,7 @@ export default function NewLeasePage() {
       // Update tenant status to active
       await supabase.from('tenants').update({ status: 'active', property_id: form.property_id }).eq('id', form.tenant_id)
       toast.success('Lease generated!')
-      router.push(`/landlord/leases/${data.id}`)
+      router.push(`/landlord/leases/${data!.id}`)
     }
   }
 
@@ -275,5 +275,13 @@ export default function NewLeasePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function NewLeasePage() {
+  return (
+    <Suspense fallback={<div className="max-w-2xl mx-auto" />}>
+      <NewLeaseContent />
+    </Suspense>
   )
 }

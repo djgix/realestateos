@@ -1,10 +1,6 @@
 import type { Metadata } from 'next'
-import { DM_Serif_Display, DM_Sans } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
-
-const dmSerif = DM_Serif_Display({ subsets:['latin'], weight:['400'], variable:'--font-display' })
-const dmSans  = DM_Sans({ subsets:['latin'], weight:['300','400','500','600'], variable:'--font-body' })
 
 export const metadata: Metadata = {
   title: 'REALESTATEos — The TurboTax of Real Estate',
@@ -13,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${dmSerif.variable} ${dmSans.variable}`}>
+    <html lang="en">
       <body className="bg-slate-950 text-slate-100 font-body antialiased">
         {children}
         <Toaster

@@ -21,7 +21,8 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { toast.error(error.message); setLoading(false) }
     else {
-      const { data: profile } = await supabase.from('profiles').select('product').single()
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: profile } = await supabase.from('profiles').select('product').eq('id', user!.id).single()
       const dest = profile?.product === 'seller' ? '/seller/dashboard'
                  : profile?.product === 'buyer'  ? '/buyer/dashboard'
                  : '/landlord/dashboard'
