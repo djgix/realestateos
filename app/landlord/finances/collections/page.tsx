@@ -1,4 +1,7 @@
+import { differenceInCalendarDays, parseISO } from 'date-fns'
+import { collectionEscalationThresholds, formatCollectionThresholds } from '@/lib/collections'
 import { createClient } from '@/lib/supabase/server'
+import { parseLandlordPreferences } from '@/lib/landlord-preferences'
 import { formatCurrency, formatDate, getDaysUntil } from '@/lib/utils'
 import { AlertTriangle, Clock, MessageCircle, ShieldCheck, Zap } from 'lucide-react'
 import Link from 'next/link'
@@ -7,16 +10,49 @@ export default async function CollectionsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: payments } = await supabase
-    .from('rent_payments')
-    .select('*, tenants(first_name, last_name, phone), properties(name)')
-    .eq('owner_id', user!.id)
-    .order('due_date', { ascending: true })
+  const [{ data: payments }, { data: autoEvents }, { data: profile }] = await Promise.all([
+    supabase
+      .from('rent_payments')
+      .select('*, tenants(first_name, last_name, phone), properties(name, state)')
+      .eq('owner_id', user!.id)
+      .order('due_date', { ascending: true }),
+    supabase
+      .from('automation_events')
+      .select('*')
+      .eq('owner_id', user!.id)
+      .in('kind', ['rent_reminder', 'collections_escalation', 'landlord_late_rent', 'rent_reminder_sms'])
+      .order('created_at', { ascending: false })
+      .limit(80),
+    supabase.from('profiles').select('landlord_preferences').eq('id', user!.id).single(),
+  ])
 
-  // Identify state for Mock Enforcement Engine
-  const softEnforcement = payments?.filter(p => p.status === 'late' && getDaysUntil(p.due_date) >= -3 && getDaysUntil(p.due_date) < 0) || []
-  const hardEnforcement = payments?.filter(p => p.status === 'late' && getDaysUntil(p.due_date) < -3) || []
-  const upcoming = payments?.filter(p => p.status === 'pending' && getDaysUntil(p.due_date) <= 5 && getDaysUntil(p.due_date) > 0) || []
+  const prefs = parseLandlordPreferences(profile?.landlord_preferences)
+  const softDays = prefs.collections.soft_days_late
+  const hardDays = prefs.collections.hard_days_late
+  const reminderLead = prefs.automation.rent_reminder_days_before
+  const collectionDays = collectionEscalationThresholds(softDays, hardDays)
+  const todayYmd = new Date().toISOString().slice(0, 10)
+
+  function daysLate(dueYmd: string) {
+    return Math.max(
+      0,
+      differenceInCalendarDays(parseISO(`${todayYmd}T12:00:00`), parseISO(`${dueYmd}T12:00:00`))
+    )
+  }
+
+  function lastEventForPayment(pid: string) {
+    return autoEvents?.find((e: { metadata?: { payment_id?: string } }) => e.metadata?.payment_id === pid)
+  }
+
+  const softEnforcement =
+    payments?.filter((p) => p.status === 'late' && daysLate(p.due_date as string) >= softDays && daysLate(p.due_date as string) < hardDays) ||
+    []
+  const hardEnforcement =
+    payments?.filter((p) => p.status === 'late' && daysLate(p.due_date as string) >= hardDays) || []
+  const upcoming =
+    payments?.filter(
+      (p) => p.status === 'pending' && getDaysUntil(p.due_date) <= reminderLead && getDaysUntil(p.due_date) > 0
+    ) || []
 
   return (
     <div className="animate-fade-in pb-12 max-w-5xl mx-auto">
@@ -28,8 +64,19 @@ export default async function CollectionsPage() {
           <h1 className="font-display text-4xl font-light text-slate-100">Collections Autopilot</h1>
         </div>
         <p className="text-slate-400 text-lg max-w-2xl mt-4">
-          Acting as your digital property manager, this engine manages tenant communications prior to due dates, initiates polite soft-collections immediately when past due, and escalates to formal legal enforcement only when statutory grace periods expire.
+          Daily automation sends rent reminders, late alerts, and staged tenant emails based on your notification settings. With your current Operations settings, collections emails fire on {formatCollectionThresholds(collectionDays)}. The soft bucket begins at day {softDays}; the escalated bucket begins at day {hardDays}. Upcoming reminders use {reminderLead} day(s) before due.
         </p>
+      </div>
+
+      <div className="card p-5 mb-6 border-slate-800 bg-slate-900/60">
+        <p className="text-sm font-medium text-slate-200 mb-2">Current collections touchpoints</p>
+        <div className="flex flex-wrap gap-2">
+          {collectionDays.map((day) => (
+            <span key={day} className="badge bg-orange-500/10 text-orange-300 border border-orange-500/20">
+              Day {day}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -53,12 +100,15 @@ export default async function CollectionsPage() {
                     </div>
                     <div>
                       <h3 className="text-slate-100 font-medium text-lg">{p.tenants?.first_name} {p.tenants?.last_name}</h3>
-                      <p className="text-slate-400 text-sm">Past statutory grace period ({Math.abs(getDaysUntil(p.due_date))} days late). Soft collections failed.</p>
+                      <p className="text-slate-400 text-sm">At or past your escalated threshold ({daysLate(p.due_date)} days late, limit {hardDays}d in Settings → Operations).</p>
                       <p className="text-red-400 text-xs font-bold uppercase tracking-wider mt-2">Owes {formatCurrency(p.total_amount)}</p>
                     </div>
                   </div>
-                  <Link href={`/landlord/resolutions/eviction?tenant_id=${p.tenant_id}`} className="btn bg-red-500 hover:bg-red-400 text-white shadow-lg shadow-red-500/20 flex-shrink-0">
-                    Generate Legal Notice <Zap className="w-4 h-4 ml-1" />
+                  <Link
+                    href={`/landlord/legal?from=collections&tab=state&state=${p.properties?.state || ''}`}
+                    className="btn bg-red-500 hover:bg-red-400 text-white shadow-lg shadow-red-500/20 flex-shrink-0"
+                  >
+                    Open state law guide <Zap className="w-4 h-4 ml-1" />
                   </Link>
                 </div>
               ))}
@@ -82,23 +132,25 @@ export default async function CollectionsPage() {
                   <div className="flex items-center justify-between mb-4 relative z-10">
                     <div>
                       <h3 className="text-slate-100 font-medium">{p.tenants?.first_name} {p.tenants?.last_name}</h3>
-                      <p className="text-slate-400 text-xs">{p.properties?.name} · {Math.abs(getDaysUntil(p.due_date))} day(s) late</p>
+                      <p className="text-slate-400 text-xs">{p.properties?.name} · {daysLate(p.due_date)} day(s) late</p>
                     </div>
                     <span className="badge bg-orange-500/20 text-orange-400 border border-orange-500/20">Grace Period</span>
                   </div>
                   
-                  {/* Simulated Terminal Log */}
-                  <div className="bg-slate-950 rounded-lg p-3 font-mono text-xs text-slate-400 relative z-10 border border-slate-800">
-                    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-800">
-                      <div className="w-2 h-2 rounded-full bg-green-500" />
-                      <span className="text-slate-300">Autopilot executing soft-check...</span>
-                    </div>
-                    <p className="text-blue-400 mb-1">&gt; SENDING SMS TO: {p.tenants?.phone || '(555) 000-0000'}</p>
-                    <p className="text-slate-300 italic">"Hi {p.tenants?.first_name}, just checking in! Your rent for {p.properties?.name} was due yesterday. Everything okay? Let us know if you need to arrange a payment plan."</p>
-                    <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-widest text-slate-500">
-                      <span>Status: Delivered</span>
-                      <span>Next action: Escalate in {3 - Math.abs(getDaysUntil(p.due_date))} day(s)</span>
-                    </div>
+                  <div className="bg-slate-950 rounded-lg p-3 text-xs text-slate-400 border border-slate-800">
+                    {(() => {
+                      const ev = lastEventForPayment(p.id)
+                      if (!ev) {
+                        return <p className="text-slate-500">No automated tenant email logged yet for this payment (runs on the daily schedule).</p>
+                      }
+                      return (
+                        <>
+                          <p className="text-slate-300 font-medium capitalize mb-1">{String(ev.kind).replace(/_/g, ' ')}</p>
+                          <p>{ev.summary}</p>
+                          <p className="text-[10px] text-slate-600 mt-2">{formatDate(ev.created_at)} · {ev.channel}</p>
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
               ))}
@@ -113,7 +165,7 @@ export default async function CollectionsPage() {
           </h2>
           {!upcoming.length ? (
             <div className="card p-5 bg-slate-900/40 border-dashed border-slate-700 text-slate-500 text-sm">
-              No payments due within 5 days.
+              No payments due within {reminderLead} days.
             </div>
           ) : (
             <div className="space-y-3">
@@ -123,10 +175,12 @@ export default async function CollectionsPage() {
                     <p className="text-slate-200 text-sm font-medium">{p.tenants?.first_name}</p>
                     <span className="text-xs text-slate-500">In {getDaysUntil(p.due_date)} day(s)</span>
                   </div>
-                  <div className="bg-slate-950 rounded p-2 text-[10px] font-mono text-slate-400 border border-slate-800/50">
-                    <span className="text-brand-400">&gt; Scheduled SMS Reminder:</span>
-                    <br/>
-                    "Friendly reminder: Rent is due on {formatDate(p.due_date)}."
+                  <div className="bg-slate-950 rounded p-2 text-[10px] text-slate-400 border border-slate-800/50">
+                    {lastEventForPayment(p.id) ? (
+                      <span className="text-slate-300">Last: {lastEventForPayment(p.id)?.summary}</span>
+                    ) : (
+                      <span className="text-slate-500">Reminder emails fire within your configured days-before-due window (daily cron).</span>
+                    )}
                   </div>
                 </div>
               ))}

@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Scale, Search, ChevronDown, ChevronRight, FileText, AlertTriangle, BookOpen, Shield, Download, Info } from 'lucide-react'
 import { US_STATES, STATE_LAWS } from '@/lib/utils'
 
@@ -39,10 +40,27 @@ const TEMPLATES = [
 ]
 
 export default function LegalPage() {
+  const searchParams = useSearchParams()
   const [tab, setTab] = useState<'guides'|'state'|'templates'>('guides')
   const [selectedState, setSelectedState] = useState('CA')
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string|null>('Eviction Process')
+
+  useEffect(() => {
+    const from = searchParams.get('from')
+    const requestedTab = searchParams.get('tab')
+    const requestedState = searchParams.get('state')
+
+    if (requestedTab === 'guides' || requestedTab === 'state' || requestedTab === 'templates') {
+      setTab(requestedTab)
+    } else if (from === 'collections') {
+      setTab('state')
+    }
+
+    if (requestedState && US_STATES.some((state) => state.code === requestedState)) {
+      setSelectedState(requestedState)
+    }
+  }, [searchParams])
 
   const stateLaw = STATE_LAWS[selectedState]
   const filtered = GUIDES.map(cat => ({

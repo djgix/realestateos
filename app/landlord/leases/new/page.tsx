@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Loader2, Check, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { US_STATES } from '@/lib/utils'
+import { leaseHintsForState } from '@/lib/ai/lease-hints'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
@@ -42,7 +43,7 @@ function NewLeaseContent() {
       }
     }
     load()
-  }, [])
+  }, [form.property_id])
 
   function set(k: string, v: string) { setForm(p => ({ ...p, [k]: v })) }
 
@@ -242,6 +243,14 @@ function NewLeaseContent() {
                   <span className="text-sm font-medium text-slate-200">{item.value}</span>
                 </div>
               ))}
+            </div>
+            <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-2">
+              <p className="text-xs font-semibold text-amber-200/90 uppercase tracking-wider">State checklist (not legal advice)</p>
+              <ul className="text-xs text-slate-400 list-disc pl-4 space-y-1">
+                {leaseHintsForState(form.state).map((h) => (
+                  <li key={h}>{h}</li>
+                ))}
+              </ul>
             </div>
             <div className="p-4 bg-landlord/5 border border-landlord/20 rounded-xl">
               <p className="text-sm text-slate-300">

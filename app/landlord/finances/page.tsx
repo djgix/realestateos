@@ -3,23 +3,47 @@ import { formatCurrency, formatDate, EXPENSE_CATEGORIES } from '@/lib/utils'
 import { DollarSign, TrendingUp, TrendingDown, Plus, Receipt, ArrowRight, CreditCard, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 
-export default async function FinancesPage() {
+const PAY_PAGE_SIZE = 50
+const PAY_STATS_CAP = 3000
+
+export default async function FinancesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ payPage?: string }>
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const sp = await searchParams
+  const payPage = Math.max(1, parseInt(sp.payPage || '1', 10) || 1)
+  const payFrom = (payPage - 1) * PAY_PAGE_SIZE
 
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString()
 
-  const [{ data: payments }, { data: expenses }, { data: profile }] = await Promise.all([
-    supabase.from('rent_payments').select('*, tenants(first_name, last_name), properties(name)').eq('owner_id', user!.id).order('due_date', { ascending: false }),
-    supabase.from('expenses').select('*, properties(name)').eq('owner_id', user!.id).order('date', { ascending: false }),
-    supabase.from('profiles').select('stripe_account_status').eq('id', user!.id).single(),
-  ])
+  const [{ data: payStats }, { data: payments, count: payCount }, { data: expenses }, { data: profile }] =
+    await Promise.all([
+      supabase
+        .from('rent_payments')
+        .select('total_amount, status, paid_date, due_date')
+        .eq('owner_id', user!.id)
+        .order('due_date', { ascending: false })
+        .limit(PAY_STATS_CAP),
+      supabase
+        .from('rent_payments')
+        .select('*, tenants(first_name, last_name), properties(name)', { count: 'exact' })
+        .eq('owner_id', user!.id)
+        .order('due_date', { ascending: false })
+        .range(payFrom, payFrom + PAY_PAGE_SIZE - 1),
+      supabase.from('expenses').select('*, properties(name)').eq('owner_id', user!.id).order('date', { ascending: false }),
+      supabase.from('profiles').select('stripe_account_status').eq('id', user!.id).single(),
+    ])
 
-  const monthlyIncome = payments?.filter(p => p.status === 'paid' && new Date(p.paid_date) >= new Date(startOfMonth)).reduce((s, p) => s + p.total_amount, 0) || 0
+  const monthlyIncome =
+    payStats?.filter((p) => p.status === 'paid' && p.paid_date && new Date(p.paid_date) >= new Date(startOfMonth)).reduce((s, p) => s + Number(p.total_amount), 0) || 0
   const monthlyExpenses = expenses?.filter(e => e.date >= startOfMonth.split('T')[0]).reduce((s, e) => s + e.amount, 0) || 0
-  const yearlyIncome = payments?.filter(p => p.status === 'paid' && new Date(p.paid_date) >= new Date(startOfYear)).reduce((s, p) => s + p.total_amount, 0) || 0
+  const yearlyIncome =
+    payStats?.filter((p) => p.status === 'paid' && p.paid_date && new Date(p.paid_date) >= new Date(startOfYear)).reduce((s, p) => s + Number(p.total_amount), 0) || 0
   const yearlyExpenses = expenses?.filter(e => e.date >= startOfYear.split('T')[0]).reduce((s, e) => s + e.amount, 0) || 0
   const netMonthly = monthlyIncome - monthlyExpenses
   const netYearly = yearlyIncome - yearlyExpenses

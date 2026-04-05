@@ -23,6 +23,8 @@ export interface Profile {
   stripe_account_id: string | null
   stripe_account_status: StripeAccountStatus
   onboarded: boolean
+  landlord_preferences?: Record<string, unknown>
+  business_address?: string | null
   created_at: string
   updated_at: string
 }
@@ -67,6 +69,7 @@ export interface Tenant {
   move_out_date: string | null
   stripe_customer_id: string | null
   portal_access: boolean
+  email_notifications?: boolean
   notes: string | null
   created_at: string
   updated_at: string

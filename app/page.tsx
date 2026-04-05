@@ -205,8 +205,8 @@ export default function HomePage() {
           <div className="font-display text-xl text-white">REAL<span className="text-brand-400">ESTATE</span>os</div>
           <p className="text-slate-500 text-sm">© 2026 REALESTATEos · The TurboTax of real estate</p>
           <div className="flex gap-6">
-            <a href="#" className="text-slate-500 hover:text-slate-400 text-sm transition-colors">Privacy</a>
-            <a href="#" className="text-slate-500 hover:text-slate-400 text-sm transition-colors">Terms</a>
+            <Link href="/privacy" className="text-slate-500 hover:text-slate-400 text-sm transition-colors">Privacy</Link>
+            <Link href="/terms" className="text-slate-500 hover:text-slate-400 text-sm transition-colors">Terms</Link>
           </div>
         </div>
       </footer>

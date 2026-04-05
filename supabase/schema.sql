@@ -17,6 +17,8 @@ create table public.profiles (
   stripe_account_id text,        -- Stripe Connect for landlords receiving rent
   stripe_account_status text default 'not_connected' check (stripe_account_status in ('not_connected','pending','active')),
   onboarded boolean default false,
+  landlord_preferences jsonb default '{}'::jsonb,
+  business_address text,  -- for email compliance footers
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -65,6 +67,7 @@ create table public.tenants (
   move_out_date date,
   stripe_customer_id text,       -- Stripe customer for ACH rent payments
   portal_access boolean default false,
+  email_notifications boolean default true,
   notes text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -154,6 +157,11 @@ create table public.expenses (
   notes text,
   created_at timestamptz default now()
 );
+
+create index idx_rent_payments_owner_due on public.rent_payments (owner_id, due_date);
+create index idx_rent_payments_pending_late on public.rent_payments (status, due_date) where status in ('pending','late');
+create index idx_leases_status_end on public.leases (status, end_date);
+create index idx_leases_owner_status on public.leases (owner_id, status);
 
 -- ─── MESSAGES ─────────────────────────────────────────────────────────
 create table public.messages (
@@ -361,6 +369,31 @@ create table public.platform_payments (
   created_at timestamptz default now()
 );
 
+-- ─── AUTOMATION AUDIT / DEDUPE (cron writes via service role) ─────────
+create table public.automation_events (
+  id uuid default uuid_generate_v4() primary key,
+  owner_id uuid references public.profiles(id) on delete cascade not null,
+  kind text not null,
+  dedupe_key text not null unique,
+  channel text default 'email' check (channel in ('email','sms','both','system')),
+  summary text,
+  metadata jsonb default '{}'::jsonb,
+  created_at timestamptz default now()
+);
+
+create index idx_automation_events_owner_created on public.automation_events (owner_id, created_at desc);
+
+-- ─── WEBHOOK IDEMPOTENCY ──────────────────────────────────────────────
+create table public.stripe_webhook_events (
+  event_id text primary key,
+  received_at timestamptz default now()
+);
+
+create table public.polar_webhook_events (
+  event_id text primary key,
+  received_at timestamptz default now()
+);
+
 -- ─── ROW LEVEL SECURITY ───────────────────────────────────────────────
 alter table public.profiles enable row level security;
 alter table public.properties enable row level security;
@@ -381,6 +414,9 @@ alter table public.buyer_offers enable row level security;
 alter table public.buyer_checklist_items enable row level security;
 alter table public.buyer_calculators enable row level security;
 alter table public.platform_payments enable row level security;
+alter table public.automation_events enable row level security;
+alter table public.stripe_webhook_events enable row level security;
+alter table public.polar_webhook_events enable row level security;
 
 -- Policies: owners only see their own data
 create policy "own_profile" on public.profiles for all using (auth.uid() = id);
@@ -402,6 +438,8 @@ create policy "own_buyer_offers" on public.buyer_offers for all using (auth.uid(
 create policy "own_checklist" on public.buyer_checklist_items for all using (auth.uid() = owner_id);
 create policy "own_calculators" on public.buyer_calculators for all using (auth.uid() = owner_id);
 create policy "own_platform_payments" on public.platform_payments for all using (auth.uid() = owner_id);
+create policy "own_automation_events_select" on public.automation_events for select using (auth.uid() = owner_id);
+create policy "own_automation_events_insert" on public.automation_events for insert with check (auth.uid() = owner_id);
 
 -- Auto updated_at
 create or replace function update_updated_at()

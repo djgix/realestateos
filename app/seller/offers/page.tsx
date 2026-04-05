@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { FileText, Plus, ThumbsUp, ThumbsDown, ArrowRight, DollarSign } from 'lucide-react'
+import { FileText, ThumbsUp, ThumbsDown, ArrowRight, DollarSign } from 'lucide-react'
 import Link from 'next/link'
+import { RecordOfferForm } from './RecordOfferForm'
 
 export default async function SellerOffersPage() {
   const supabase = await createClient()
@@ -32,6 +33,8 @@ export default async function SellerOffersPage() {
           <p className="page-subtitle">{offers?.length || 0} total offers</p>
         </div>
       </div>
+
+      <RecordOfferForm listings={listings?.map((l) => ({ id: l.id, address: l.address })) || []} />
 
       {!offers?.length ? (
         <div className="card p-16 text-center">

@@ -24,9 +24,9 @@ export default function ScheduleEClient({ rents, deductions, totalExpenses, netI
           <ShieldCheck className="w-5 h-5 text-green-500" />
         </div>
         <div>
-          <h2 className="text-slate-100 font-medium text-lg">Automated Tax Extraction Complete</h2>
+          <h2 className="text-slate-100 font-medium text-lg">Schedule E from your ledger</h2>
           <p className="text-slate-400 text-sm mt-1">
-            RealEstateOS successfully parsed all synchronized banking transactions and manual expense logs, mapped them strictly to IRS 1040 Schedule E line items, and computed automated depreciation schedules.
+            Paid rent and tax-deductible expenses recorded in RealEstateOS are mapped to IRS 1040 Schedule E lines on each load. Depreciation here is a placeholder until you connect a real asset schedule or CPA workflow.
           </p>
         </div>
       </div>

@@ -1,46 +1,76 @@
 'use client'
 
-import { useState } from 'react'
-import { ArrowLeft, Clock, Wrench, AlertTriangle, MessageSquare, Zap, Activity } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { ArrowLeft, Wrench, AlertTriangle, Activity, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { triageMaintenanceDescription } from '@/lib/ai/maintenance-triage'
+import toast from 'react-hot-toast'
 
-export function MaintenanceClient({ req, tenant, property }: { req: any, tenant: any, property: any }) {
+const STATUSES = ['open', 'in_progress', 'completed', 'cancelled'] as const
+
+export function MaintenanceClient({
+  req,
+  tenant,
+  property,
+  events,
+}: {
+  req: any
+  tenant: any
+  property: any
+  events: any[]
+}) {
   const router = useRouter()
   const [status, setStatus] = useState(req.status)
-  const [isDispatching, setIsDispatching] = useState(false)
-  const [logs, setLogs] = useState<{time: string, msg: string, type: string}[]>([])
+  const [scheduled, setScheduled] = useState(
+    req.scheduled_date ? String(req.scheduled_date).slice(0, 16) : ''
+  )
+  const [notes, setNotes] = useState(req.notes || '')
+  const [actualCost, setActualCost] = useState(req.actual_cost != null ? String(req.actual_cost) : '')
+  const [contractorName, setContractorName] = useState(req.contractor_name || '')
+  const [contractorPhone, setContractorPhone] = useState(req.contractor_phone || '')
+  const [notify, setNotify] = useState(true)
+  const [saving, setSaving] = useState(false)
 
-  const addLog = (msg: string, type: 'info' | 'success' | 'warning' = 'info') => {
-    setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), msg, type }])
-  }
+  const triage = useMemo(() => triageMaintenanceDescription(req.description || ''), [req.description])
 
-  const handleDispatch = () => {
-    setIsDispatching(true)
-    addLog('Initializing AI Autopilot parameters...', 'info')
-    
-    setTimeout(() => {
-      setStatus('in_progress')
-      addLog(`Analyzing category: [${req.category.toUpperCase()}]`, 'info')
-    }, 1000)
-
-    setTimeout(() => {
-      addLog('Drafting 24-hr Entry Notice for Tenant...', 'info')
-    }, 2500)
-
-    setTimeout(() => {
-      addLog(`Sending SMS Notice to ${tenant?.phone || '(555) 000-0000'}`, 'success')
-    }, 3500)
-
-    setTimeout(() => {
-      addLog('Pinging local available preferred vendors...', 'info')
-    }, 4500)
-
-    setTimeout(() => {
-      addLog(`Vendor Assigned: 'Joe's Plumbing & Heating' (Est: $250.00)`, 'success')
-      setIsDispatching(false)
-    }, 6000)
+  async function save() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/maintenance/${req.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status,
+          scheduled_date: scheduled ? new Date(scheduled).toISOString() : null,
+          notes,
+          actual_cost: actualCost ? Number(actualCost) : null,
+          contractor_name: contractorName || null,
+          contractor_phone: contractorPhone || null,
+          notify_tenant: notify,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Save failed')
+        return
+      }
+      const statusMessage =
+        data.notification_status === 'sent'
+          ? 'tenant notified'
+          : data.notification_status === 'quiet_hours'
+            ? 'tenant notification deferred for quiet hours'
+            : data.notification_status === 'failed'
+              ? 'save completed but tenant notification failed'
+              : notify
+                ? 'no tenant notification sent'
+                : 'tenant notification skipped'
+      toast.success(`Saved · ${statusMessage}`)
+      router.refresh()
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -54,29 +84,26 @@ export function MaintenanceClient({ req, tenant, property }: { req: any, tenant:
           <div className="flex items-center gap-3 mb-2">
             <h1 className="font-display text-4xl text-slate-100">{req.title}</h1>
             <span className={`badge ${status === 'open' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/20' : 'bg-blue-500/20 text-blue-400 border border-blue-500/20'}`}>
-              {status.toUpperCase()}
+              {String(status).toUpperCase().replace('_', ' ')}
             </span>
             {req.priority === 'emergency' && (
               <span className="badge bg-red-500/20 text-red-500 border border-red-500/20 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" /> Habitability Emergency
+                <AlertTriangle className="w-3 h-3" /> Emergency flag
               </span>
             )}
           </div>
           <p className="text-slate-400 flex items-center gap-2">
-            Requested {formatDate(req.created_at)} · {property?.name} · Unit Occupied by {tenant?.first_name}
+            Requested {formatDate(req.created_at)} · {property?.name} · {tenant?.first_name}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        
-        {/* LEFT COL: Ticket Details */}
         <div className="lg:col-span-3 space-y-6">
           <div className="card p-6 bg-slate-900 border-slate-800">
-            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Tenant Report</h3>
+            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Tenant report</h3>
             <p className="text-slate-200 text-lg leading-relaxed">{req.description}</p>
           </div>
-          
           <div className="flex items-center gap-4 text-sm">
             <div className="card px-4 py-3 flex-1 flex items-center gap-3">
               <Wrench className="w-5 h-5 text-slate-500" />
@@ -88,54 +115,78 @@ export function MaintenanceClient({ req, tenant, property }: { req: any, tenant:
           </div>
         </div>
 
-        {/* RIGHT COL: PM Autopilot */}
-        <div className="lg:col-span-2">
-          <div className="card p-6 border-brand-500/30 bg-slate-900 shadow-[0_0_40px_rgba(79,110,247,0.1)] relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/10 blur-2xl rounded-full -mr-16 -mt-16" />
-            
-            <h3 className="flex items-center gap-2 text-brand-400 font-medium mb-4 pb-4 border-b border-slate-800">
-              <Activity className="w-4 h-4" /> Autopilot Dispatch Engine
+        <div className="lg:col-span-2 space-y-6">
+          <div className="card p-6 border-brand-500/30 bg-slate-900">
+            <h3 className="flex items-center gap-2 text-brand-400 font-medium mb-3">
+              <Activity className="w-4 h-4" /> Maintenance triage
             </h3>
+            <p className="text-xs text-slate-500 uppercase mb-1">Suggested severity: {triage.severity}</p>
+            <p className="text-sm text-slate-300 mb-2">{triage.summary}</p>
+            <p className="text-xs text-brand-300">Trade: {triage.suggestedTrade}</p>
+            <p className="text-[10px] text-slate-600 mt-3">Rule-based assist — verify before dispatching vendors.</p>
+          </div>
 
-            {status === 'open' ? (
-              <div className="text-center py-4">
-                <p className="text-slate-400 text-sm mb-6">Skip the phone calls. AI will generate the required legally compliant notice, instantly text the tenant, and automatically assign the cheapest available preferred vendor from your network.</p>
-                <button 
-                  onClick={handleDispatch}
-                  disabled={isDispatching}
-                  className="btn bg-brand-500 hover:bg-brand-400 text-white shadow-lg shadow-brand-500/20 w-full justify-center"
-                >
-                  {isDispatching ? 'Initiating...' : '1-Click Auto Dispatch'} 
-                  {!isDispatching && <Zap className="w-4 h-4 ml-1" />}
-                </button>
+          <div className="card p-6 border-slate-800">
+            <h3 className="text-sm font-semibold text-slate-200 mb-4">Update & notify</h3>
+            <div className="space-y-3">
+              <div className="form-group">
+                <label className="label">Status</label>
+                <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                  ))}
+                </select>
               </div>
+              <div className="form-group">
+                <label className="label">Scheduled (local)</label>
+                <input type="datetime-local" className="input" value={scheduled} onChange={(e) => setScheduled(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="label">Internal notes</label>
+                <textarea className="input min-h-[80px]" value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="label">Actual cost</label>
+                <input type="number" min={0} step="0.01" className="input" value={actualCost} onChange={(e) => setActualCost(e.target.value)} placeholder="0.00" />
+              </div>
+              <div className="form-group">
+                <label className="label">Contractor name</label>
+                <input className="input" value={contractorName} onChange={(e) => setContractorName(e.target.value)} placeholder="Acme Plumbing" />
+              </div>
+              <div className="form-group">
+                <label className="label">Contractor phone</label>
+                <input className="input" value={contractorPhone} onChange={(e) => setContractorPhone(e.target.value)} placeholder="(555) 555-5555" />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-slate-400">
+                <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+                Email tenant when status or schedule changes
+              </label>
+              <button type="button" onClick={save} disabled={saving} className="btn bg-brand-500 hover:bg-brand-400 text-white w-full justify-center">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save changes'}
+              </button>
+            </div>
+          </div>
+
+          <div className="card p-6 border-slate-800">
+            <h3 className="text-sm font-semibold text-slate-200 mb-4">Audit trail</h3>
+            {!events.length ? (
+              <p className="text-sm text-slate-500">No automation events logged for this request yet.</p>
             ) : (
-              <div className="bg-slate-950 font-mono text-[10px] sm:text-xs text-slate-400 p-4 rounded-xl border border-slate-800 h-64 overflow-y-auto">
-                {logs.length === 0 ? (
-                  <p className="text-slate-600">Waiting for engine...</p>
-                ) : (
-                  <div className="space-y-3">
-                    {logs.map((log, i) => (
-                      <div key={i} className="flex gap-3">
-                        <span className="text-slate-600 flex-shrink-0">[{log.time}]</span>
-                        <span className={log.type === 'success' ? 'text-green-400' : log.type === 'warning' ? 'text-orange-400' : 'text-slate-300'}>
-                          {log.msg}
-                        </span>
-                      </div>
-                    ))}
-                    {isDispatching && (
-                      <div className="flex items-center gap-2 mt-4 text-brand-400">
-                        <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
-                        Processing...
-                      </div>
-                    )}
+              <div className="space-y-3">
+                {events.map((event) => (
+                  <div key={event.id} className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                      <p className="text-xs uppercase tracking-wider text-slate-500">{String(event.kind).replace(/_/g, ' ')}</p>
+                      <p className="text-[11px] text-slate-600">{formatDate(event.created_at)}</p>
+                    </div>
+                    <p className="text-sm text-slate-300">{event.summary}</p>
+                    <p className="text-[11px] text-slate-500 mt-2">Channel: {event.channel}</p>
                   </div>
-                )}
+                ))}
               </div>
             )}
           </div>
         </div>
-
       </div>
     </div>
   )

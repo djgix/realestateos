@@ -14,5 +14,13 @@ export default async function MaintenanceDetailPage({ params }: { params: Promis
 
   if (!req) notFound()
 
-  return <MaintenanceClient req={req} tenant={req.tenants} property={req.properties} />
+  const { data: events } = await supabase
+    .from('automation_events')
+    .select('*')
+    .eq('owner_id', req.owner_id)
+    .contains('metadata', { maintenance_id: req.id })
+    .order('created_at', { ascending: false })
+    .limit(8)
+
+  return <MaintenanceClient req={req} tenant={req.tenants} property={req.properties} events={events ?? []} />
 }

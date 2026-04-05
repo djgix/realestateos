@@ -88,3 +88,44 @@ export async function createSetupIntent(tenantCustomerId: string) {
   })
   return setupIntent
 }
+
+/** Recurring rent on platform account with transfer to landlord Connect account. */
+export async function createRentSubscription({
+  tenantCustomerId,
+  landlordAccountId,
+  amountCents,
+  leaseId,
+  propertyName,
+}: {
+  tenantCustomerId: string
+  landlordAccountId: string
+  amountCents: number
+  leaseId: string
+  propertyName: string
+}) {
+  const product = await getStripe().products.create({
+    name: `Rent — ${propertyName}`,
+    metadata: { lease_id: leaseId },
+  })
+  return getStripe().subscriptions.create({
+    customer: tenantCustomerId,
+    items: [
+      {
+        price_data: {
+          currency: 'usd',
+          product: product.id,
+          recurring: { interval: 'month' },
+          unit_amount: amountCents,
+        },
+      },
+    ],
+    transfer_data: { destination: landlordAccountId },
+    metadata: { lease_id: leaseId },
+    payment_behavior: 'default_incomplete',
+    payment_settings: {
+      save_default_payment_method: 'on_subscription',
+      payment_method_types: ['us_bank_account'],
+    },
+    expand: ['latest_invoice'],
+  })
+}

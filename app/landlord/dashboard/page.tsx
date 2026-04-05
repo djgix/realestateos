@@ -14,14 +14,16 @@ export default async function LandlordDashboard() {
     { data: tenants },
     { data: maintenance },
     { data: payments },
-    { data: leases }
+    { data: leases },
+    { data: autoEvents },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
     supabase.from('properties').select('*').eq('owner_id', user!.id),
     supabase.from('tenants').select('*, properties(*)').eq('owner_id', user!.id),
     supabase.from('maintenance_requests').select('*, properties(*), tenants(*)').eq('owner_id', user!.id).neq('status', 'completed').order('created_at', { ascending: false }).limit(4),
     supabase.from('rent_payments').select('*, tenants(*), properties(*)').eq('owner_id', user!.id).order('due_date', { ascending: false }),
-    supabase.from('leases').select('*').eq('owner_id', user!.id).eq('status', 'active')
+    supabase.from('leases').select('*').eq('owner_id', user!.id).eq('status', 'active'),
+    supabase.from('automation_events').select('*').eq('owner_id', user!.id).order('created_at', { ascending: false }).limit(8),
   ])
 
   const activeTenants = tenants?.filter(t => t.status === 'active').length || 0
@@ -46,7 +48,7 @@ export default async function LandlordDashboard() {
             </div>
             <h1 className="font-display text-4xl font-light text-slate-100">{greeting}, {firstName}</h1>
           </div>
-          <p className="page-subtitle mt-2">Autopilot Systems Online. Financials & Management automated.</p>
+          <p className="page-subtitle mt-2">Portfolio overview — automation runs on your saved notification settings.</p>
         </div>
         <div className="flex gap-2">
           <Link href="/landlord/tenants/new" className="btn-secondary">
@@ -58,52 +60,30 @@ export default async function LandlordDashboard() {
         </div>
       </div>
 
-      {/* AUTONOMOUS PM FEED */}
-      <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 px-1 mt-8">Recent Autonomous Actions</h2>
+      <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 px-1 mt-8">Recent automation</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        <div className="card p-5 border-brand-500/30 bg-slate-900 flex items-start gap-4 hover:bg-slate-800/50 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center border border-brand-500/20 flex-shrink-0">
-             <MessageSquare className="w-4 h-4 text-brand-400" />
+        {autoEvents?.length ? (
+          autoEvents.map((ev: { id: string; kind: string; summary: string | null; channel: string; created_at: string }) => (
+            <div key={ev.id} className="card p-5 border-slate-800 bg-slate-900 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-brand-500/15 flex items-center justify-center border border-brand-500/25 flex-shrink-0">
+                {ev.kind.includes('maintenance') ? <Wrench className="w-4 h-4 text-blue-400" />
+                  : ev.kind.includes('payment') || ev.kind.includes('invoice') || ev.kind.includes('subscription') || ev.kind.includes('stripe_connect') ? <DollarSign className="w-4 h-4 text-green-400" />
+                  : ev.kind.includes('rent') || ev.kind.includes('late') || ev.kind.includes('bank_setup') ? <MessageSquare className="w-4 h-4 text-brand-400" />
+                  : ev.kind.includes('lease') ? <Building2 className="w-4 h-4 text-amber-400" />
+                  : <Activity className="w-4 h-4 text-slate-400" />}
+              </div>
+              <div>
+                <h3 className="text-slate-100 font-medium text-sm mb-1 capitalize">{ev.kind.replace(/_/g, ' ')}</h3>
+                <p className="text-slate-400 text-xs mb-2">{ev.summary || ev.channel}</p>
+                <p className="text-[10px] text-slate-500 font-mono">{formatDate(ev.created_at)}</p>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="col-span-full card p-8 text-center text-slate-500 text-sm border-dashed border-slate-700">
+            No automation events yet. After the daily job runs (and you have leases or payments), reminders and alerts appear here.
           </div>
-          <div>
-            <h3 className="text-slate-100 font-medium text-sm mb-1">Rent Reminder SMS</h3>
-            <p className="text-slate-400 text-xs mb-2">Automated friendly reminder sent to active tenants.</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">14 mins ago · The Collector</p>
-          </div>
-        </div>
-
-        <div className="card p-5 border-blue-500/30 bg-slate-900 flex items-start gap-4 hover:bg-slate-800/50 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/20 flex-shrink-0">
-             <Wrench className="w-4 h-4 text-blue-400" />
-          </div>
-          <div>
-            <h3 className="text-slate-100 font-medium text-sm mb-1">Maintenance Triage</h3>
-            <p className="text-slate-400 text-xs mb-2">Plumbing issue triaged. Ready for 1-Click Auto Dispatch.</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">2 hours ago · The Fixer</p>
-          </div>
-        </div>
-
-        <div className="card p-5 border-green-500/30 bg-slate-900 flex items-start gap-4 hover:bg-slate-800/50 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/20 flex-shrink-0">
-             <Building2 className="w-4 h-4 text-green-400" />
-          </div>
-          <div>
-            <h3 className="text-slate-100 font-medium text-sm mb-1">Listing Syndicated</h3>
-            <p className="text-slate-400 text-xs mb-2">Vacant property successfully posted to Zillow.</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Yesterday · ATS</p>
-          </div>
-        </div>
-
-        <div className="card p-5 border-slate-700/50 bg-slate-900 flex items-start gap-4 hover:bg-slate-800/50 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 flex-shrink-0">
-             <Clock className="w-4 h-4 text-slate-400" />
-          </div>
-          <div>
-            <h3 className="text-slate-100 font-medium text-sm mb-1">Schedule E Paused</h3>
-            <p className="text-slate-400 text-xs mb-2">Autopilot bookkeeping paused until Q4 end.</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Pending · The Bookkeeper</p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* STATS */}

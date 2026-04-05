@@ -3,6 +3,9 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { ArrowLeft, Phone, Mail, MapPin, DollarSign, FileText, Wrench, MessageSquare, Edit } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { signTenantToken } from '@/lib/tenant-portal-token'
+import { TenantPaymentActions } from './TenantPaymentActions'
+import { summarizeScreening } from '@/lib/ai/screening-summary'
 
 export default async function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -15,10 +18,11 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
 
   if (!tenant) notFound()
 
-  const [{ data: leases }, { data: payments }, { data: maintenance }] = await Promise.all([
+  const [{ data: leases }, { data: payments }, { data: maintenance }, { data: paymentEvents }] = await Promise.all([
     supabase.from('leases').select('*').eq('tenant_id', id).order('created_at', { ascending: false }),
     supabase.from('rent_payments').select('*').eq('tenant_id', id).order('due_date', { ascending: false }).limit(12),
     supabase.from('maintenance_requests').select('*').eq('tenant_id', id).order('created_at', { ascending: false }).limit(5),
+    supabase.from('automation_events').select('*').eq('owner_id', user!.id).contains('metadata', { tenant_id: id }).order('created_at', { ascending: false }).limit(6),
   ])
 
   const statusColors: Record<string, string> = {
@@ -31,6 +35,14 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
   const totalPaid = payments?.filter(p => p.status === 'paid').reduce((s, p) => s + p.total_amount, 0) || 0
   const latePays = payments?.filter(p => p.status === 'late').length || 0
   const activeLeases = leases?.filter(l => l.status === 'active') || []
+
+  const base = process.env.NEXT_PUBLIC_APP_URL || ''
+  const portalUrl = `${base}/tenant/${tenant.id}?t=${encodeURIComponent(signTenantToken(tenant.id))}`
+  const screening = summarizeScreening({
+    background_check_status: tenant.background_check_status,
+    credit_score: tenant.credit_score,
+    monthly_income: tenant.monthly_income,
+  })
 
   return (
     <div>
@@ -70,6 +82,23 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <TenantPaymentActions
+          tenantId={tenant.id}
+          hasCustomer={Boolean(tenant.stripe_customer_id)}
+          portalUrl={portalUrl}
+          recentEvents={paymentEvents ?? []}
+        />
+
+        {(tenant.status === 'applicant' || tenant.background_check_status !== 'not_run') && (
+          <div className="card p-6 lg:col-span-3 border-amber-500/20 bg-amber-500/5">
+            <h2 className="section-title">Screening snapshot</h2>
+            <p className="text-slate-300 text-sm mb-2">{screening.text}</p>
+            <span className={`badge capitalize ${screening.recommendation === 'approve' ? 'bg-green-400/10 text-green-400' : screening.recommendation === 'decline' ? 'bg-red-400/10 text-red-400' : 'bg-yellow-400/10 text-yellow-400'}`}>
+              {screening.recommendation}
+            </span>
+          </div>
+        )}
+
         {/* CONTACT */}
         <div className="card p-6">
           <h2 className="section-title">Contact Information</h2>

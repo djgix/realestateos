@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/shared/Sidebar'
 import {
   LayoutDashboard, Building2, Users, FileText,
-  Wrench, DollarSign, Scale, MessageSquare, Settings, Zap
+  Wrench, DollarSign, Scale, MessageSquare, Settings, ListChecks,
 } from 'lucide-react'
 
 const navItems = [
@@ -19,6 +19,7 @@ const navItems = [
   { href:'/landlord/tenants',      label:'Tenant Directory', icon: <Users className="w-4 h-4 flex-shrink-0 opacity-50" /> },
   { href:'/landlord/leases',       label:'Lease Ledger',     icon: <FileText className="w-4 h-4 flex-shrink-0 opacity-50" /> },
   { href:'/landlord/legal',        label:'Legal Center',     icon: <Scale className="w-4 h-4 flex-shrink-0 opacity-50" /> },
+  { href:'/landlord/guided-flows', label:'Guided flows',     icon: <ListChecks className="w-4 h-4 flex-shrink-0 opacity-50" /> },
   { href:'/landlord/settings',     label:'Settings',         icon: <Settings className="w-4 h-4 flex-shrink-0 opacity-50" /> },
 ]
 
