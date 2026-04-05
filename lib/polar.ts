@@ -17,7 +17,7 @@ export async function createCheckout({
   metadata?: Record<string, string>
 }) {
   const checkout = await polar.checkouts.create({
-    productId,
+    products: [productId],
     customerEmail,
     successUrl,
     metadata,
