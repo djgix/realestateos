@@ -1,27 +1,33 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate, getDaysUntil } from '@/lib/utils'
-import { Plus, Building2, Users, Wrench, AlertTriangle, ArrowRight, DollarSign, Activity, MessageSquare, Clock } from 'lucide-react'
+import { Plus, Building2, Users, Wrench, AlertTriangle, ArrowRight, DollarSign, Activity, MessageSquare, Clock, CheckCircle2, Send } from 'lucide-react'
 import { FinancialChart } from '@/components/dashboard/FinancialChart'
 import Link from 'next/link'
 
 export default async function LandlordDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
   const [
     { data: profile },
     { data: properties },
     { data: tenants },
     { data: maintenance },
     { data: payments },
-    { data: leases }
+    { data: leases },
+    { data: recentDispatches },
+    { data: recentPortalSubmissions },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
     supabase.from('properties').select('*').eq('owner_id', user!.id),
     supabase.from('tenants').select('*, properties(*)').eq('owner_id', user!.id),
     supabase.from('maintenance_requests').select('*, properties(*), tenants(*)').eq('owner_id', user!.id).neq('status', 'completed').order('created_at', { ascending: false }).limit(4),
     supabase.from('rent_payments').select('*, tenants(*), properties(*)').eq('owner_id', user!.id).order('due_date', { ascending: false }),
-    supabase.from('leases').select('*').eq('owner_id', user!.id).eq('status', 'active')
+    supabase.from('leases').select('*').eq('owner_id', user!.id).eq('status', 'active'),
+    supabase.from('maintenance_requests').select('*, tenants(first_name, last_name), properties(name)').eq('owner_id', user!.id).eq('landlord_approval_status', 'approved').gte('updated_at', sevenDaysAgo).order('updated_at', { ascending: false }).limit(3),
+    supabase.from('maintenance_requests').select('*, tenants(first_name, last_name), properties(name)').eq('owner_id', user!.id).eq('submitted_via', 'tenant').gte('created_at', sevenDaysAgo).order('created_at', { ascending: false }).limit(3),
   ])
 
   const activeTenants = tenants?.filter(t => t.status === 'active').length || 0
@@ -34,7 +40,51 @@ export default async function LandlordDashboard() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
-  const targetTenantId = latePayments[0]?.tenant_id || ''
+  // Build a real feed of recent automated events
+  type FeedEvent = { id: string; icon: string; color: string; borderColor: string; title: string; subtitle: string; time: string; source: string }
+  const feedEvents: FeedEvent[] = []
+
+  for (const d of (recentDispatches || [])) {
+    feedEvents.push({
+      id: `dispatch-${d.id}`,
+      icon: 'wrench',
+      color: 'text-blue-400',
+      borderColor: 'border-blue-500/30',
+      title: `Contractor Dispatched`,
+      subtitle: `${d.title} — ${(d.properties as any)?.name}`,
+      time: formatDate(d.updated_at || d.created_at),
+      source: 'The Fixer',
+    })
+  }
+
+  for (const p of (recentPortalSubmissions || [])) {
+    feedEvents.push({
+      id: `portal-${p.id}`,
+      icon: 'send',
+      color: 'text-brand-400',
+      borderColor: 'border-brand-500/30',
+      title: `Tenant Portal Submission`,
+      subtitle: `${(p.tenants as any)?.first_name} ${(p.tenants as any)?.last_name} — ${p.title}`,
+      time: formatDate(p.created_at),
+      source: 'Tenant Portal',
+    })
+  }
+
+  for (const p of latePayments.slice(0, 2)) {
+    feedEvents.push({
+      id: `late-${(p as any).id}`,
+      icon: 'alert',
+      color: 'text-orange-400',
+      borderColor: 'border-orange-500/30',
+      title: `Late Payment Flagged`,
+      subtitle: `${(p as any).tenants?.first_name} ${(p as any).tenants?.last_name} — ${formatCurrency((p as any).total_amount)} overdue`,
+      time: formatDate((p as any).due_date),
+      source: 'The Collector',
+    })
+  }
+
+  feedEvents.sort((a, b) => b.time.localeCompare(a.time))
+  const showFeed = feedEvents.length > 0
 
   return (
     <div className="animate-fade-in pb-12">
@@ -59,52 +109,30 @@ export default async function LandlordDashboard() {
       </div>
 
       {/* AUTONOMOUS PM FEED */}
-      <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 px-1 mt-8">Recent Autonomous Actions</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        <div className="card p-5 border-brand-500/30 bg-slate-900 flex items-start gap-4 hover:bg-slate-800/50 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center border border-brand-500/20 flex-shrink-0">
-             <MessageSquare className="w-4 h-4 text-brand-400" />
-          </div>
-          <div>
-            <h3 className="text-slate-100 font-medium text-sm mb-1">Rent Reminder SMS</h3>
-            <p className="text-slate-400 text-xs mb-2">Automated friendly reminder sent to active tenants.</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">14 mins ago · The Collector</p>
-          </div>
+      <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 px-1 mt-8">Recent Automated Activity</h2>
+      {!showFeed ? (
+        <div className="card p-5 mb-8 flex items-center gap-4 border-dashed border-slate-700 bg-slate-900/40">
+          <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
+          <p className="text-slate-400 text-sm">All systems quiet. Your autopilot is monitoring {properties?.length || 0} propert{properties?.length === 1 ? 'y' : 'ies'}.</p>
         </div>
-
-        <div className="card p-5 border-blue-500/30 bg-slate-900 flex items-start gap-4 hover:bg-slate-800/50 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/20 flex-shrink-0">
-             <Wrench className="w-4 h-4 text-blue-400" />
-          </div>
-          <div>
-            <h3 className="text-slate-100 font-medium text-sm mb-1">Maintenance Triage</h3>
-            <p className="text-slate-400 text-xs mb-2">Plumbing issue triaged. Ready for 1-Click Auto Dispatch.</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">2 hours ago · The Fixer</p>
-          </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+          {feedEvents.slice(0, 4).map(ev => (
+            <div key={ev.id} className={`card p-5 ${ev.borderColor} bg-slate-900 flex items-start gap-4 hover:bg-slate-800/50 transition-colors`}>
+              <div className={`w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 flex-shrink-0`}>
+                {ev.icon === 'wrench' && <Wrench className={`w-4 h-4 ${ev.color}`} />}
+                {ev.icon === 'send' && <Send className={`w-4 h-4 ${ev.color}`} />}
+                {ev.icon === 'alert' && <AlertTriangle className={`w-4 h-4 ${ev.color}`} />}
+              </div>
+              <div>
+                <h3 className="text-slate-100 font-medium text-sm mb-1">{ev.title}</h3>
+                <p className="text-slate-400 text-xs mb-2">{ev.subtitle}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">{ev.time} · {ev.source}</p>
+              </div>
+            </div>
+          ))}
         </div>
-
-        <div className="card p-5 border-green-500/30 bg-slate-900 flex items-start gap-4 hover:bg-slate-800/50 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/20 flex-shrink-0">
-             <Building2 className="w-4 h-4 text-green-400" />
-          </div>
-          <div>
-            <h3 className="text-slate-100 font-medium text-sm mb-1">Listing Syndicated</h3>
-            <p className="text-slate-400 text-xs mb-2">Vacant property successfully posted to Zillow.</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Yesterday · ATS</p>
-          </div>
-        </div>
-
-        <div className="card p-5 border-slate-700/50 bg-slate-900 flex items-start gap-4 hover:bg-slate-800/50 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 flex-shrink-0">
-             <Clock className="w-4 h-4 text-slate-400" />
-          </div>
-          <div>
-            <h3 className="text-slate-100 font-medium text-sm mb-1">Schedule E Paused</h3>
-            <p className="text-slate-400 text-xs mb-2">Autopilot bookkeeping paused until Q4 end.</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Pending · The Bookkeeper</p>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

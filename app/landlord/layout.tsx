@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/shared/Sidebar'
 import {
   LayoutDashboard, Building2, Users, FileText,
-  Wrench, DollarSign, Scale, MessageSquare, Settings, Zap
+  Wrench, DollarSign, Scale, MessageSquare, Settings, HardHat
 } from 'lucide-react'
 
 const navItems = [
@@ -13,11 +13,13 @@ const navItems = [
   { href:'/landlord/maintenance',          label:'The Fixer',        icon: <Wrench className="w-4 h-4 flex-shrink-0 text-blue-400" /> },
   { href:'/landlord/properties',           label:'The Leasing Agent',icon: <Building2 className="w-4 h-4 flex-shrink-0 text-green-400" /> },
   { href:'/landlord/finances/schedule-e',  label:'The Bookkeeper',   icon: <FileText className="w-4 h-4 flex-shrink-0 text-purple-400" /> },
-  
+
   // Standard CRM Context
   { href:'/landlord/finances',     label:'Finances Ledger',  icon: <DollarSign className="w-4 h-4 flex-shrink-0 opacity-50" /> },
   { href:'/landlord/tenants',      label:'Tenant Directory', icon: <Users className="w-4 h-4 flex-shrink-0 opacity-50" /> },
   { href:'/landlord/leases',       label:'Lease Ledger',     icon: <FileText className="w-4 h-4 flex-shrink-0 opacity-50" /> },
+  { href:'/landlord/messages',     label:'Messages',         icon: <MessageSquare className="w-4 h-4 flex-shrink-0 opacity-50" /> },
+  { href:'/landlord/contractors',  label:'Contractors',      icon: <HardHat className="w-4 h-4 flex-shrink-0 opacity-50" /> },
   { href:'/landlord/legal',        label:'Legal Center',     icon: <Scale className="w-4 h-4 flex-shrink-0 opacity-50" /> },
   { href:'/landlord/settings',     label:'Settings',         icon: <Settings className="w-4 h-4 flex-shrink-0 opacity-50" /> },
 ]

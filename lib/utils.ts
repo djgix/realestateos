@@ -77,6 +77,17 @@ export const EXPENSE_CATEGORIES = [
   { value:'other', label:'Other', deductible:false },
 ]
 
+export const CONTRACTOR_TYPE: Record<string, string> = {
+  plumbing: 'Plumber',
+  electrical: 'Electrician',
+  hvac: 'HVAC Technician',
+  appliance: 'Appliance Repair Tech',
+  structural: 'General Contractor',
+  pest: 'Pest Control',
+  landscaping: 'Landscaper',
+  other: 'Handyman',
+}
+
 export const PRIORITY_CONFIG = {
   emergency: { label:'Emergency', color:'text-red-400 bg-red-400/10 border-red-400/20' },
   high:      { label:'High',      color:'text-orange-400 bg-orange-400/10 border-orange-400/20' },

@@ -82,49 +82,13 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             </Link>
           </div>
           {!tenants?.length ? (
-            <div className="relative z-10 space-y-4">
-              <div className="bg-brand-500/10 border border-brand-500/20 rounded-xl p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-brand-400 font-medium text-sm">Property is Vacant</p>
-                  <p className="text-slate-400 text-xs mt-1">Syndicating to Zillow & Apartments.com</p>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="flex items-center gap-1.5 text-xs font-bold text-green-400 uppercase tracking-widest bg-green-500/10 px-2 py-1 rounded">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Active Listing
-                  </span>
-                </div>
-              </div>
-
-              {/* MOCK ATS APPLICANT */}
-              <div className="card p-4 border-slate-700 bg-slate-950">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-xs font-bold font-mono border border-blue-500/30">SJ</div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-200">Sarah Jenkins</p>
-                      <p className="text-xs text-slate-500">Applied 2 hours ago</p>
-                    </div>
-                  </div>
-                  <span className="badge bg-green-500/10 text-green-400 border border-green-500/20">Pre-Qualified</span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="bg-slate-900 rounded p-2 text-center">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">TransUnion Score</p>
-                    <p className="text-lg font-display text-green-400">742</p>
-                  </div>
-                  <div className="bg-slate-900 rounded p-2 text-center">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Income (Verified)</p>
-                    <p className="text-lg font-display text-slate-200">$8.2k<span className="text-xs text-slate-500">/mo</span></p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button className="btn-secondary text-xs w-full justify-center py-2">View Full Report</button>
-                  <Link href={`/landlord/resolutions/lease?tenant_id=mock_applicant&property_id=${id}`} className="btn bg-brand-500 hover:bg-brand-400 text-white text-xs w-full justify-center py-2 shadow-lg shadow-brand-500/20">
-                    Generate Lease 
-                  </Link>
-                </div>
+            <div className="relative z-10 space-y-3">
+              <div className="bg-slate-800/50 border border-dashed border-slate-700 rounded-xl p-6 text-center">
+                <p className="text-slate-400 text-sm font-medium mb-1">This unit is vacant</p>
+                <p className="text-slate-500 text-xs mb-4">Add a tenant manually or create a lease to get started.</p>
+                <Link href={`/landlord/tenants/new?property=${id}`} className="btn-landlord text-xs">
+                  <Plus className="w-3.5 h-3.5" /> Add Tenant
+                </Link>
               </div>
             </div>
           ) : (

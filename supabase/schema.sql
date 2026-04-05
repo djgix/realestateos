@@ -416,6 +416,52 @@ create trigger trg_flows before update on public.guided_flows for each row execu
 create trigger trg_listings before update on public.seller_listings for each row execute function update_updated_at();
 create trigger trg_searches before update on public.buyer_searches for each row execute function update_updated_at();
 
+-- ─── CONTRACTOR DIRECTORY ─────────────────────────────────────────────
+create table public.contractor_directory (
+  id uuid default uuid_generate_v4() primary key,
+  owner_id uuid references public.profiles(id) on delete cascade not null,
+  name text not null,
+  category text not null check (category in ('plumbing','electrical','hvac','appliance','structural','pest','landscaping','other')),
+  phone text,
+  email text,
+  notes text,
+  preferred boolean default false,
+  created_at timestamptz default now()
+);
+
+alter table public.contractor_directory enable row level security;
+create policy "own_contractors" on public.contractor_directory for all using (auth.uid() = owner_id);
+
+-- ─── NEW COLUMNS (automation features) ───────────────────────────────
+-- Tenant portal token (secure unique URL access)
+alter table public.tenants add column if not exists portal_token uuid default uuid_generate_v4() unique;
+
+-- Maintenance dispatch tracking
+alter table public.maintenance_requests add column if not exists dispatched_at timestamptz;
+alter table public.maintenance_requests add column if not exists contractor_email text;
+alter table public.maintenance_requests add column if not exists submitted_via text default 'landlord' check (submitted_via in ('landlord','tenant'));
+
+-- Rent payment collections tracking (which rule steps have fired)
+alter table public.rent_payments add column if not exists collections_actions_sent text[] default '{}';
+
+-- Collections configuration (JSONB rules per landlord / per property)
+alter table public.profiles add column if not exists collections_config jsonb;
+alter table public.properties add column if not exists collections_config jsonb;
+
+-- Maintenance approval tracking (SMS YES/NO flow)
+alter table public.maintenance_requests add column if not exists landlord_approval_status text
+  check (landlord_approval_status in ('pending_sms','approved','declined'));
+alter table public.maintenance_requests add column if not exists landlord_notified_at timestamptz;
+alter table public.maintenance_requests add column if not exists contractor_name text;
+alter table public.maintenance_requests add column if not exists contractor_phone text;
+
+-- Per-landlord settings (notifications, automation, portal, comms, rent defaults, maintenance prefs)
+alter table public.profiles add column if not exists notifications_config jsonb;
+alter table public.profiles add column if not exists settings jsonb;
+
+-- Tenant portal: ensure portal_access column exists (for global disable)
+-- portal_token already added above
+
 -- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger as $$

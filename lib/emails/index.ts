@@ -168,6 +168,68 @@ export async function sendOfferReceived({ sellerEmail, sellerName, buyerName, of
   })
 }
 
+// ─── TENANT PORTAL INVITE ─────────────────────────────────
+export async function sendTenantPortalInvite({ tenantEmail, tenantName, portalUrl, propertyName, landlordName }: {
+  tenantEmail: string; tenantName: string; portalUrl: string; propertyName: string; landlordName: string
+}) {
+  await getResend().emails.send({
+    from: FROM, to: tenantEmail,
+    subject: `Your tenant portal is ready — ${propertyName}`,
+    html: base(`
+      <h2 style="color:#7b94ff;margin:0 0 12px;">Your Tenant Portal</h2>
+      <p>Hi ${tenantName}, ${landlordName} has set up your tenant portal for <strong>${propertyName}</strong>.</p>
+      <p style="color:#94a3b8;margin-bottom:24px;">Use your portal to submit maintenance requests, view your open requests, and pay rent online.</p>
+      <div style="background:#1e2a87;border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
+        <p style="color:#a5b4fc;font-size:13px;margin:0 0 8px;">Your personal portal link</p>
+        <a href="${portalUrl}" style="color:white;font-weight:600;font-size:16px;word-break:break-all;">${portalUrl}</a>
+      </div>
+      <a href="${portalUrl}" style="display:inline-block;background:#4f6ef7;color:white;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:600;font-size:16px;">
+        Open My Portal →
+      </a>
+      <p style="color:#475569;font-size:13px;margin-top:24px;">Bookmark this link — it's your permanent access. No password needed.</p>
+    `),
+  })
+}
+
+// ─── CONTRACTOR DISPATCH ──────────────────────────────────
+export async function sendContractorDispatch({ contractorEmail, contractorName, category, address, tenantName, title, description }: {
+  contractorEmail: string; contractorName: string; category: string; address: string;
+  tenantName: string; title: string; description: string
+}) {
+  await getResend().emails.send({
+    from: FROM, to: contractorEmail,
+    subject: `New job request: ${title} — ${address}`,
+    html: base(`
+      <h2 style="color:#60a5fa;margin:0 0 20px;">New Job Request</h2>
+      <p>Hi ${contractorName}, you have been assigned a new service request.</p>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;margin:20px 0;">
+        <p><strong>Location:</strong> ${address}</p>
+        <p><strong>Tenant:</strong> ${tenantName}</p>
+        <p><strong>Category:</strong> ${category}</p>
+        <p><strong>Issue:</strong> ${title}</p>
+        <p><strong>Description:</strong> ${description}</p>
+      </div>
+      <p style="color:#94a3b8;">Please contact the tenant or property manager to schedule access. Thank you!</p>
+    `),
+  })
+}
+
+// ─── MAINTENANCE DECLINED (to tenant) ────────────────────
+export async function sendMaintenanceDeclined({ tenantEmail, tenantName, title }: {
+  tenantEmail: string; tenantName: string; title: string
+}) {
+  await getResend().emails.send({
+    from: FROM, to: tenantEmail,
+    subject: `Maintenance request update: ${title}`,
+    html: base(`
+      <h2 style="color:#fbbf24;margin:0 0 20px;">Maintenance Request Update</h2>
+      <p>Hi ${tenantName},</p>
+      <p>Your maintenance request "<strong>${title}</strong>" has been reviewed. Your landlord will follow up with next steps shortly.</p>
+      <p style="color:#64748b;font-size:13px;">If this is urgent, please contact your landlord directly.</p>
+    `),
+  })
+}
+
 // ─── DOCUMENT GENERATED ───────────────────────────────────
 export async function sendDocumentReady({ email, name, docName, downloadUrl }: {
   email: string; name: string; docName: string; downloadUrl: string
