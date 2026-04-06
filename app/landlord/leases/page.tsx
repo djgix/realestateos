@@ -1,7 +1,10 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate, getDaysUntil } from '@/lib/utils'
 import { FileText, Plus, AlertTriangle, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+
+export const metadata: Metadata = { title: 'Leases | REALESTATEos' }
 
 export default async function LeasesPage() {
   const supabase = await createClient()

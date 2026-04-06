@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { paymentId } = await req.json()
+  const body = await req.json()
+  const paymentId = body.paymentId ?? body.payment_id
 
   // Get payment record with tenant and landlord details
   const { data: payment } = await supabase

@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { ArrowLeft, Phone, Mail, MapPin, DollarSign, FileText, Wrench, MessageSquare, Edit, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, MapPin, FileText, Wrench, MessageSquare, Edit } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { CopyPortalLink } from './CopyPortalLink'
 
 export default async function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -122,17 +123,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
               </div>
             )}
             {tenant.portal_token && (
-              <div className="p-3 bg-brand-500/10 rounded-xl border border-brand-500/20">
-                <p className="text-xs text-slate-500 mb-1">Tenant Portal</p>
-                <a
-                  href={`/tenant/${tenant.portal_token}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-brand-400 hover:underline flex items-center gap-1"
-                >
-                  View portal <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
+              <CopyPortalLink portalToken={tenant.portal_token} />
             )}
           </div>
         </div>

@@ -1,8 +1,11 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate, getDaysUntil } from '@/lib/utils'
 import { Plus, Building2, Users, Wrench, AlertTriangle, ArrowRight, DollarSign, Activity, MessageSquare, Clock, CheckCircle2, Send } from 'lucide-react'
 import { FinancialChart, type ChartDataPoint } from '@/components/dashboard/FinancialChart'
 import Link from 'next/link'
+
+export const metadata: Metadata = { title: 'Dashboard | REALESTATEos' }
 
 export default async function LandlordDashboard() {
   const supabase = await createClient()
@@ -177,15 +180,15 @@ export default async function LandlordDashboard() {
       {/* STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label:'Monthly MRR', value: formatCurrency(monthlyRent), color:'text-green-400' },
-          { label:'Delinquent', value: overduePayments, color:'text-red-400' },
-          { label:'Properties', value: properties?.length || 0, color:'text-slate-200' },
-          { label:'Active Tenants', value: activeTenants, color:'text-blue-400' },
+          { label:'Monthly MRR', value: formatCurrency(monthlyRent), color:'text-green-400', href:'/landlord/finances' },
+          { label:'Delinquent', value: overduePayments, color:'text-red-400', href:'/landlord/finances/collections' },
+          { label:'Properties', value: properties?.length || 0, color:'text-slate-200', href:'/landlord/properties' },
+          { label:'Active Tenants', value: activeTenants, color:'text-blue-400', href:'/landlord/tenants' },
         ].map(s => (
-          <div key={s.label} className="stat-card">
+          <Link key={s.label} href={s.href} className="stat-card hover:border-slate-700 transition-colors cursor-pointer">
             <span className="text-slate-500 text-xs">{s.label}</span>
             <p className={`font-display text-3xl ${s.color}`}>{s.value}</p>
-          </div>
+          </Link>
         ))}
       </div>
 

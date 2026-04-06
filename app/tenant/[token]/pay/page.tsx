@@ -28,10 +28,10 @@ export default function PayRentPage() {
     if (!paymentInfo?.payment_id) return
     setPaying(true)
     try {
-      const res = await fetch('/api/rent/collect', {
+      const res = await fetch('/api/rent/collect-portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payment_id: paymentInfo.payment_id }),
+        body: JSON.stringify({ portal_token: token, payment_id: paymentInfo.payment_id }),
       })
       const data = await res.json()
       if (data.url) {

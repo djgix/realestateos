@@ -57,7 +57,7 @@ export function MaintenanceClient({
 
   return (
     <div className="animate-fade-in max-w-4xl mx-auto pb-12">
-      <Link href="/landlord/maintenance" className="text-sm text-slate-500 hover:text-white flex items-center gap-2 mb-6 transition-colors">
+      <Link href="/landlord/maintenance" className="btn-ghost mb-6 -ml-2 inline-flex">
         <ArrowLeft className="w-4 h-4" /> Back to Queue
       </Link>
 

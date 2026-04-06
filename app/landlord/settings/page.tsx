@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   User, CreditCard, Bell, Shield, Building2, Check, Loader2,
-  Wrench, DollarSign, Home, MessageSquare, Zap, Phone, Plus, Trash2
+  Wrench, DollarSign, Home, MessageSquare, Zap, Phone, Plus, Trash2, Eye, EyeOff, Download
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -48,6 +48,10 @@ function SettingsContent() {
   })
   const [collectionsConfig, setCollectionsConfig] = useState<CollectionsConfig>({ ...DEFAULT_COLLECTIONS_CONFIG })
   const [passwordForm, setPasswordForm] = useState({ current: '', password: '', confirm: '' })
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [savingNotif, setSavingNotif] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
   const [savingCollections, setSavingCollections] = useState(false)
@@ -113,6 +117,25 @@ function SettingsContent() {
     setSavingCollections(false)
   }
 
+  async function deleteAccount() {
+    if (deleteConfirmText !== 'DELETE') { toast.error('Type DELETE to confirm'); return }
+    setDeletingAccount(true)
+    try {
+      const res = await fetch('/api/account/delete', { method: 'POST' })
+      if (res.ok) {
+        toast.success('Account deleted')
+        window.location.href = '/'
+      } else {
+        const d = await res.json()
+        toast.error(d.error || 'Failed to delete account')
+      }
+    } catch {
+      toast.error('Failed to delete account')
+    } finally {
+      setDeletingAccount(false)
+    }
+  }
+
   async function changePassword() {
     if (!passwordForm.password) { toast.error('Enter a new password'); return }
     if (passwordForm.password !== passwordForm.confirm) { toast.error('Passwords do not match'); return }
@@ -173,6 +196,7 @@ function SettingsContent() {
     { id:'portal',        label:'Tenant Portal',  icon:Home },
     { id:'communications',label:'Messaging',      icon:MessageSquare },
     { id:'security',      label:'Security',       icon:Shield },
+    { id:'export',        label:'Export Data',    icon:Download },
   ]
 
   function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -600,15 +624,27 @@ function SettingsContent() {
                 <div className="space-y-4">
                   <div className="form-group">
                     <label className="label">New Password</label>
-                    <input type="password" value={passwordForm.password}
-                      onChange={e => setPasswordForm(f => ({...f, password: e.target.value}))}
-                      className="input" placeholder="Min. 8 characters" />
+                    <div className="relative">
+                      <input type={showPassword ? 'text' : 'password'} value={passwordForm.password}
+                        onChange={e => setPasswordForm(f => ({...f, password: e.target.value}))}
+                        className="input pr-10" placeholder="Min. 8 characters" />
+                      <button type="button" onClick={() => setShowPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="label">Confirm New Password</label>
-                    <input type="password" value={passwordForm.confirm}
-                      onChange={e => setPasswordForm(f => ({...f, confirm: e.target.value}))}
-                      className="input" />
+                    <div className="relative">
+                      <input type={showConfirmPassword ? 'text' : 'password'} value={passwordForm.confirm}
+                        onChange={e => setPasswordForm(f => ({...f, confirm: e.target.value}))}
+                        className="input pr-10" />
+                      <button type="button" onClick={() => setShowConfirmPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <button onClick={changePassword} disabled={savingPassword} className="btn-landlord">
                     {savingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Change Password'}
@@ -616,28 +652,42 @@ function SettingsContent() {
                 </div>
               </div>
 
-              <div className="card p-6">
-                <h2 className="text-lg font-semibold text-slate-200 mb-4">Other Security</h2>
-                <div className="space-y-3">
-                  {[
-                    { label:'Two-factor authentication', desc:'Add an extra layer of protection to your account', tag:'Coming soon' },
-                    { label:'Active sessions', desc:'Manage devices where you\'re logged in', tag:'Coming soon' },
-                  ].map(item => (
-                    <div key={item.label} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl">
-                      <div>
-                        <p className="text-sm font-medium text-slate-200">{item.label}</p>
-                        <p className="text-xs text-slate-500">{item.desc}</p>
-                      </div>
-                      <span className="badge bg-slate-700 text-slate-500 text-xs">{item.tag}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               <div className="card p-6 border-red-500/20">
                 <h2 className="text-lg font-semibold text-slate-200 mb-2">Danger Zone</h2>
-                <p className="text-slate-500 text-sm mb-4">Permanently deletes your account and all associated data.</p>
-                <button className="btn-secondary text-red-400 border-red-400/20 hover:border-red-400/40 hover:text-red-300">Delete Account</button>
+                <p className="text-slate-500 text-sm mb-4">Permanently delete your account and all associated data. This cannot be undone.</p>
+                <div className="form-group mb-3">
+                  <label className="label text-red-400/80">Type DELETE to confirm</label>
+                  <input value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)}
+                    className="input border-red-500/20 focus:border-red-500/40" placeholder="DELETE" />
+                </div>
+                <button onClick={deleteAccount} disabled={deletingAccount || deleteConfirmText !== 'DELETE'}
+                  className="btn-danger">
+                  {deletingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete Account'}
+                </button>
+              </div>
+            </div>
+          )}
+          {/* EXPORT DATA */}
+          {tab === 'export' && (
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-slate-200 mb-2">Export Your Data</h2>
+              <p className="text-slate-500 text-sm mb-6">Download your data as CSV files for use in spreadsheets or accounting software.</p>
+              <div className="space-y-3">
+                {[
+                  { label: 'Payment History', desc: 'All rent payments, statuses, dates, and amounts', href: '/api/export/payments' },
+                  { label: 'Expenses', desc: 'All expenses with categories and tax-deductible flags', href: '/api/export/expenses' },
+                  { label: 'Tenant Directory', desc: 'All tenants with contact info and status', href: '/api/export/tenants' },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                    <div>
+                      <p className="text-sm font-medium text-slate-200">{item.label}</p>
+                      <p className="text-xs text-slate-500">{item.desc}</p>
+                    </div>
+                    <a href={item.href} download className="btn-secondary text-xs">
+                      <Download className="w-3.5 h-3.5" /> Download CSV
+                    </a>
+                  </div>
+                ))}
               </div>
             </div>
           )}

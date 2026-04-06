@@ -9,10 +9,12 @@ export default async function ScheduleEPage() {
 
   const [
     { data: payments },
-    { data: expenses }
+    { data: expenses },
+    { data: properties }
   ] = await Promise.all([
     supabase.from('rent_payments').select('*').eq('owner_id', user!.id).eq('status', 'paid').gte('paid_date', startOfYear),
-    supabase.from('expenses').select('*').eq('owner_id', user!.id).eq('tax_deductible', true).gte('date', startOfYear)
+    supabase.from('expenses').select('*').eq('owner_id', user!.id).eq('tax_deductible', true).gte('date', startOfYear),
+    supabase.from('properties').select('purchase_price').eq('owner_id', user!.id)
   ])
 
   // Map to IRS Lines
@@ -54,8 +56,12 @@ export default async function ScheduleEPage() {
     }
   })
 
-  // Mock standard depreciation for the portfolio
-  deductions.line18_depreciation = 8500 
+  // Calculate depreciation: IRS allows straight-line depreciation over 27.5 years
+  const propertiesWithPrice = (properties || []).filter((p: any) => p.purchase_price > 0)
+  deductions.line18_depreciation = propertiesWithPrice.reduce(
+    (sum: number, p: any) => sum + p.purchase_price / 27.5,
+    0
+  )
 
   const totalExpenses = Object.values(deductions).reduce((a,b) => a + b, 0)
   const netIncome = line3_rents - totalExpenses

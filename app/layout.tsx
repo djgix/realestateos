@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 export const metadata: Metadata = {
   title: 'REALESTATEos — The TurboTax of Real Estate',
   description: 'Whether you\'re a landlord, selling your home, or buying — REALESTATEos guides you through every step and saves you thousands.',
+  icons: { icon: '/favicon.svg' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

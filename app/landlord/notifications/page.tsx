@@ -1,7 +1,10 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { Bell, AlertTriangle, Wrench, MessageSquare, FileText, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
+
+export const metadata: Metadata = { title: 'Notifications | REALESTATEos' }
 
 interface FeedItem {
   id: string

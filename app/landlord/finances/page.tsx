@@ -1,7 +1,10 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate, EXPENSE_CATEGORIES } from '@/lib/utils'
 import { DollarSign, TrendingUp, TrendingDown, Plus, Receipt, ArrowRight, CreditCard, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
+
+export const metadata: Metadata = { title: 'Finances | REALESTATEos' }
 
 export default async function FinancesPage() {
   const supabase = await createClient()

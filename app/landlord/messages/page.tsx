@@ -11,6 +11,7 @@ export default async function MessagesPage() {
     .select('*, tenants(first_name, last_name, email), properties(name)')
     .eq('owner_id', user!.id)
     .order('created_at', { ascending: false })
+    .limit(200)
 
   // Group by tenant
   const threads = new Map<string, any>()
