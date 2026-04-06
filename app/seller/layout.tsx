@@ -23,8 +23,8 @@ export default async function SellerLayout({ children }: { children: React.React
       <Sidebar product="seller" navItems={navItems}
         user={{ email: user.email!, full_name: profile?.full_name, plan: profile?.plan }}
         accentColor="bg-seller" logo="S" />
-      <main className="flex-1 ml-64 min-h-screen">
-        <div className="p-8 max-w-7xl mx-auto">{children}</div>
+      <main className="flex-1 ml-0 md:ml-64 min-h-screen">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto pt-16 md:pt-8">{children}</div>
       </main>
     </div>
   )

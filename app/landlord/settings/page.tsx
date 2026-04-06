@@ -164,14 +164,14 @@ function SettingsContent() {
   const TABS = [
     { id:'profile',       label:'Profile',        icon:User },
     { id:'billing',       label:'Billing',        icon:CreditCard },
-    { id:'banking',       label:'Rent Banking',   icon:Building2 },
+    { id:'banking',       label:'Bank Account',   icon:Building2 },
     { id:'notifications', label:'Notifications',  icon:Bell },
     { id:'collections',   label:'Collections',    icon:DollarSign },
     { id:'automation',    label:'Automation',     icon:Zap },
     { id:'rent',          label:'Rent & Fees',    icon:Home },
     { id:'maintenance',   label:'Maintenance',    icon:Wrench },
     { id:'portal',        label:'Tenant Portal',  icon:Home },
-    { id:'communications',label:'Communications', icon:MessageSquare },
+    { id:'communications',label:'Messaging',      icon:MessageSquare },
     { id:'security',      label:'Security',       icon:Shield },
   ]
 

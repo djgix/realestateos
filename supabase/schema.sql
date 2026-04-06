@@ -475,3 +475,17 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- Performance indexes
+create index if not exists idx_properties_owner on public.properties(owner_id);
+create index if not exists idx_tenants_owner on public.tenants(owner_id);
+create index if not exists idx_tenants_portal_token on public.tenants(portal_token);
+create index if not exists idx_maintenance_owner on public.maintenance_requests(owner_id);
+create index if not exists idx_maintenance_status on public.maintenance_requests(status);
+create index if not exists idx_maintenance_approval on public.maintenance_requests(landlord_approval_status);
+create index if not exists idx_rent_payments_owner on public.rent_payments(owner_id);
+create index if not exists idx_rent_payments_status on public.rent_payments(status);
+create index if not exists idx_rent_payments_due_date on public.rent_payments(due_date);
+create index if not exists idx_leases_owner on public.leases(owner_id);
+create index if not exists idx_messages_owner on public.messages(owner_id);
+create index if not exists idx_expenses_owner on public.expenses(owner_id);

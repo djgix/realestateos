@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate, getDaysUntil } from '@/lib/utils'
 import { Plus, Building2, Users, Wrench, AlertTriangle, ArrowRight, DollarSign, Activity, MessageSquare, Clock, CheckCircle2, Send } from 'lucide-react'
-import { FinancialChart } from '@/components/dashboard/FinancialChart'
+import { FinancialChart, type ChartDataPoint } from '@/components/dashboard/FinancialChart'
 import Link from 'next/link'
 
 export default async function LandlordDashboard() {
@@ -9,6 +9,7 @@ export default async function LandlordDashboard() {
   const { data: { user } } = await supabase.auth.getUser()
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const sixMonthsAgo = new Date(Date.now() - 183 * 24 * 60 * 60 * 1000).toISOString()
 
   const [
     { data: profile },
@@ -19,6 +20,8 @@ export default async function LandlordDashboard() {
     { data: leases },
     { data: recentDispatches },
     { data: recentPortalSubmissions },
+    { data: paidPayments },
+    { data: expenses },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
     supabase.from('properties').select('*').eq('owner_id', user!.id),
@@ -28,7 +31,31 @@ export default async function LandlordDashboard() {
     supabase.from('leases').select('*').eq('owner_id', user!.id).eq('status', 'active'),
     supabase.from('maintenance_requests').select('*, tenants(first_name, last_name), properties(name)').eq('owner_id', user!.id).eq('landlord_approval_status', 'approved').gte('updated_at', sevenDaysAgo).order('updated_at', { ascending: false }).limit(3),
     supabase.from('maintenance_requests').select('*, tenants(first_name, last_name), properties(name)').eq('owner_id', user!.id).eq('submitted_via', 'tenant').gte('created_at', sevenDaysAgo).order('created_at', { ascending: false }).limit(3),
+    supabase.from('rent_payments').select('total_amount, paid_date').eq('owner_id', user!.id).eq('status', 'paid').gte('paid_date', sixMonthsAgo),
+    supabase.from('expenses').select('amount, date').eq('owner_id', user!.id).gte('date', sixMonthsAgo),
   ])
+
+  // Build real 6-month chart data
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const chartData: ChartDataPoint[] = []
+  const now = new Date()
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const y = d.getFullYear()
+    const m = d.getMonth()
+    const label = MONTHS[m]
+    const income = (paidPayments || []).filter((p: any) => {
+      if (!p.paid_date) return false
+      const pd = new Date(p.paid_date)
+      return pd.getFullYear() === y && pd.getMonth() === m
+    }).reduce((s: number, p: any) => s + (p.total_amount || 0), 0)
+    const exp = (expenses || []).filter((e: any) => {
+      if (!e.date) return false
+      const ed = new Date(e.date)
+      return ed.getFullYear() === y && ed.getMonth() === m
+    }).reduce((s: number, e: any) => s + (e.amount || 0), 0)
+    chartData.push({ month: label, income, expenses: exp })
+  }
 
   const activeTenants = tenants?.filter(t => t.status === 'active').length || 0
   const latePayments = payments?.filter(p => p.status === 'late') || []
@@ -86,8 +113,21 @@ export default async function LandlordDashboard() {
   feedEvents.sort((a, b) => b.time.localeCompare(a.time))
   const showFeed = feedEvents.length > 0
 
+  const showOnboarding = !properties?.length && !(profile?.settings as any)?.onboarding_complete
+
   return (
     <div className="animate-fade-in pb-12">
+      {/* ONBOARDING BANNER */}
+      {showOnboarding && (
+        <div className="mb-6 bg-brand-500/10 border border-brand-500/20 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-brand-300 font-medium text-sm">Welcome to REALESTATEos!</p>
+            <p className="text-slate-500 text-xs mt-0.5">Set up your portfolio in a few quick steps to get started.</p>
+          </div>
+          <a href="/landlord/onboarding" className="btn-landlord text-sm flex-shrink-0">Get started →</a>
+        </div>
+      )}
+
       <div className="page-header flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -96,7 +136,7 @@ export default async function LandlordDashboard() {
             </div>
             <h1 className="font-display text-4xl font-light text-slate-100">{greeting}, {firstName}</h1>
           </div>
-          <p className="page-subtitle mt-2">Autopilot Systems Online. Financials & Management automated.</p>
+          <p className="page-subtitle mt-2">Monitoring {properties?.length || 0} propert{properties?.length === 1 ? 'y' : 'ies'} · {activeTenants} active tenant{activeTenants !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
           <Link href="/landlord/tenants/new" className="btn-secondary">
@@ -154,7 +194,7 @@ export default async function LandlordDashboard() {
         <div className="lg:col-span-2">
           <div className="card p-6">
             <h2 className="section-title mb-0">Financial Overview</h2>
-            <FinancialChart />
+            <FinancialChart data={chartData} />
           </div>
         </div>
 

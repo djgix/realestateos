@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { Scale, Search, ChevronDown, ChevronRight, FileText, AlertTriangle, BookOpen, Shield, Download, Info } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { Scale, Search, ChevronDown, ChevronRight, FileText, AlertTriangle, BookOpen, Shield, Copy, Info } from 'lucide-react'
 import { US_STATES, STATE_LAWS } from '@/lib/utils'
 
 const GUIDES = [
@@ -38,11 +39,33 @@ const TEMPLATES = [
   'Late Rent Notice',
 ]
 
+const TEMPLATE_CONTENT: Record<string, string> = {
+  'Pay or Quit Notice': `NOTICE TO PAY RENT OR QUIT\n\nDate: [DATE]\n\nTo: [TENANT NAME]\nAddress: [PROPERTY ADDRESS]\n\nYou are hereby notified that rent in the amount of $[AMOUNT] for the period of [PERIOD] is past due.\n\nYou are required to pay the full amount within [X] days of this notice or vacate the premises.\n\nIf you fail to pay or vacate, legal proceedings will be initiated to recover possession of the premises.\n\n[LANDLORD NAME]\n[DATE]`,
+  'Cure or Quit Notice': `NOTICE TO CURE VIOLATION OR QUIT\n\nDate: [DATE]\n\nTo: [TENANT NAME]\nAddress: [PROPERTY ADDRESS]\n\nYou are in violation of your lease agreement for the following reason:\n[DESCRIBE VIOLATION]\n\nYou must cure this violation within [X] days or vacate the premises.\n\n[LANDLORD NAME]\n[DATE]`,
+  'Unconditional Quit Notice': `UNCONDITIONAL NOTICE TO QUIT\n\nDate: [DATE]\n\nTo: [TENANT NAME]\nAddress: [PROPERTY ADDRESS]\n\nYou are hereby required to vacate and surrender the premises within [X] days.\n\nThis notice is issued for the following reason:\n[REASON]\n\n[LANDLORD NAME]\n[DATE]`,
+  'Rent Increase Notice': `NOTICE OF RENT INCREASE\n\nDate: [DATE]\n\nTo: [TENANT NAME]\nAddress: [PROPERTY ADDRESS]\n\nThis notice is to inform you that your monthly rent will increase from $[OLD AMOUNT] to $[NEW AMOUNT], effective [EFFECTIVE DATE].\n\nThis notice is provided [X] days in advance as required by law.\n\n[LANDLORD NAME]\n[DATE]`,
+  'Lease Renewal Offer': `LEASE RENEWAL OFFER\n\nDate: [DATE]\n\nDear [TENANT NAME],\n\nYour current lease at [PROPERTY ADDRESS] expires on [EXPIRATION DATE].\n\nWe would like to offer you a lease renewal under the following terms:\n- New lease term: [START DATE] to [END DATE]\n- Monthly rent: $[AMOUNT]\n\nPlease sign and return this offer by [RESPONSE DATE].\n\n[LANDLORD NAME]\n[DATE]`,
+  'Entry Notice': `NOTICE OF LANDLORD ENTRY\n\nDate: [DATE]\n\nTo: [TENANT NAME]\nAddress: [PROPERTY ADDRESS]\n\nThis is to notify you that the landlord or their agent will enter the premises on [DATE] between [TIME RANGE] for the following purpose:\n[PURPOSE]\n\nThis notice is provided [X] hours/days in advance as required by law.\n\n[LANDLORD NAME]`,
+  'Security Deposit Itemization': `SECURITY DEPOSIT DISPOSITION\n\nDate: [DATE]\n\nTenant: [TENANT NAME]\nProperty: [PROPERTY ADDRESS]\nMove-out date: [DATE]\n\nSecurity deposit held: $[AMOUNT]\n\nDeductions:\n- [ITEM 1]: $[AMOUNT]\n- [ITEM 2]: $[AMOUNT]\n\nTotal deductions: $[TOTAL]\nAmount returned: $[REFUND]\n\n[LANDLORD NAME]\n[DATE]`,
+  'Move-Out Instructions': `MOVE-OUT INSTRUCTIONS\n\nDear [TENANT NAME],\n\nYour lease at [PROPERTY ADDRESS] ends on [DATE]. Please follow these instructions:\n\n1. Return all keys by [DATE/TIME]\n2. Clean the property thoroughly\n3. Repair any damage beyond normal wear and tear\n4. Provide a forwarding address for deposit return\n5. Schedule a move-out inspection at [CONTACT]\n\n[LANDLORD NAME]`,
+  'Lease Violation Warning': `NOTICE OF LEASE VIOLATION\n\nDate: [DATE]\n\nTo: [TENANT NAME]\nAddress: [PROPERTY ADDRESS]\n\nThis notice is to inform you of a violation of your lease agreement:\n[DESCRIBE VIOLATION]\n\nPlease remedy this violation immediately. Continued violations may result in eviction proceedings.\n\n[LANDLORD NAME]\n[DATE]`,
+  'Late Rent Notice': `LATE RENT NOTICE\n\nDate: [DATE]\n\nTo: [TENANT NAME]\nAddress: [PROPERTY ADDRESS]\n\nYour rent payment of $[AMOUNT] for [PERIOD] was due on [DUE DATE] and has not been received.\n\nA late fee of $[FEE] has been applied. Total amount due: $[TOTAL]\n\nPlease remit payment immediately to avoid further action.\n\n[LANDLORD NAME]\n[DATE]`,
+}
+
 export default function LegalPage() {
   const [tab, setTab] = useState<'guides'|'state'|'templates'>('guides')
   const [selectedState, setSelectedState] = useState('CA')
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string|null>('Eviction Process')
+
+  function copyTemplate(name: string) {
+    const content = TEMPLATE_CONTENT[name] || `[${name} template — customize with your details]`
+    navigator.clipboard.writeText(content).then(() => {
+      toast.success(`"${name}" copied to clipboard`)
+    }).catch(() => {
+      toast.error('Copy failed — please try again')
+    })
+  }
 
   const stateLaw = STATE_LAWS[selectedState]
   const filtered = GUIDES.map(cat => ({
@@ -161,7 +184,7 @@ export default function LegalPage() {
       {/* TEMPLATES */}
       {tab === 'templates' && (
         <div>
-          <p className="text-slate-500 text-sm mb-6">Professional notice templates. Customize with your details and download as PDF.</p>
+          <p className="text-slate-500 text-sm mb-6">Professional notice templates. Copy to clipboard and customize with your details.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {TEMPLATES.map(template => (
               <div key={template} className="card p-5 hover:border-slate-700 transition-colors">
@@ -170,7 +193,12 @@ export default function LegalPage() {
                   <h3 className="font-semibold text-slate-200 text-sm">{template}</h3>
                 </div>
                 <div className="flex gap-2">
-                  <button className="btn-secondary text-xs py-1.5 px-3 flex-1 justify-center">Customize & Download</button>
+                  <button
+                    onClick={() => copyTemplate(template)}
+                    className="btn-secondary text-xs py-1.5 px-3 flex-1 justify-center gap-1.5"
+                  >
+                    <Copy className="w-3 h-3" /> Copy Template
+                  </button>
                 </div>
               </div>
             ))}

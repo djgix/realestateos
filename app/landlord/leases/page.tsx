@@ -52,7 +52,7 @@ export default async function LeasesPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           { label:'Active', value: active.length, color:'text-green-400' },
           { label:'Expiring Soon', value: expiringSoon.length, color:'text-yellow-400' },

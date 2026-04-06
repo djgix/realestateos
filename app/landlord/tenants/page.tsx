@@ -34,7 +34,7 @@ export default async function TenantsPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {[
           { label:'Active', value: active.length, color:'text-green-400' },
           { label:'Applicants', value: applicants.length, color:'text-yellow-400' },

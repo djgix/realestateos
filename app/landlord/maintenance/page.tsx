@@ -1,21 +1,31 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatDate } from '@/lib/utils'
-import { Wrench, Plus, AlertTriangle, CheckCircle2, ArrowRight, Clock } from 'lucide-react'
+import { Wrench, Plus, AlertTriangle, CheckCircle2, ArrowRight, Clock, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function MaintenancePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: requests } = await supabase
-    .from('maintenance_requests')
-    .select('*, properties(name), tenants(first_name, last_name)')
-    .eq('owner_id', user!.id)
-    .order('created_at', { ascending: false })
+
+  const [{ data: requests }, { data: pendingSms }] = await Promise.all([
+    supabase
+      .from('maintenance_requests')
+      .select('*, properties(name), tenants(first_name, last_name)')
+      .eq('owner_id', user!.id)
+      .order('created_at', { ascending: false }),
+    (supabase as any)
+      .from('maintenance_requests')
+      .select('*, properties(name), tenants(first_name, last_name)')
+      .eq('owner_id', user!.id)
+      .eq('landlord_approval_status', 'pending_sms')
+      .order('created_at', { ascending: false }) as Promise<{ data: any[] | null }>,
+  ])
 
   const open = requests?.filter(r => r.status === 'open') || []
   const inProgress = requests?.filter(r => r.status === 'in_progress') || []
   const completed = requests?.filter(r => r.status === 'completed') || []
   const emergency = open.filter(r => r.priority === 'emergency')
+  const awaitingApproval = (pendingSms as any)?.data || []
 
   const priorityColor: Record<string, string> = {
     emergency: 'bg-red-400/10 text-red-400 border-red-400/20',
@@ -29,12 +39,47 @@ export default async function MaintenancePage() {
       <div className="page-header flex items-center justify-between">
         <div>
           <h1 className="page-title">Maintenance</h1>
-          <p className="page-subtitle">{open.length} open · {inProgress.length} in progress</p>
+          <p className="page-subtitle">
+            {open.length} open · {inProgress.length} in progress
+            {awaitingApproval.length > 0 && ` · ${awaitingApproval.length} awaiting approval`}
+          </p>
         </div>
         <Link href="/landlord/maintenance/new" className="btn-landlord">
           <Plus className="w-4 h-4" /> New request
         </Link>
       </div>
+
+      {/* PENDING SMS APPROVAL BANNER */}
+      {awaitingApproval.length > 0 && (
+        <div className="mb-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <MessageSquare className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <p className="text-amber-300 font-medium text-sm">
+              {awaitingApproval.length} request{awaitingApproval.length > 1 ? 's' : ''} awaiting your SMS approval
+            </p>
+          </div>
+          <div className="space-y-2">
+            {awaitingApproval.map((req: any) => (
+              <Link key={req.id} href={`/landlord/maintenance/${req.id}`}
+                className="flex items-center justify-between p-3 bg-amber-500/5 rounded-xl border border-amber-500/10 hover:border-amber-500/30 transition-colors">
+                <div>
+                  <p className="text-sm font-medium text-slate-200">{req.title}</p>
+                  <p className="text-xs text-slate-500">
+                    {req.properties?.name}
+                    {req.tenants ? ` · ${req.tenants.first_name} ${req.tenants.last_name}` : ''}
+                    {' · '}{formatDate(req.created_at)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-amber-400 uppercase tracking-widest font-semibold">Reply YES / NO</span>
+                  <ArrowRight className="w-4 h-4 text-slate-600" />
+                </div>
+              </Link>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500 mt-3">Reply YES or NO to the SMS you received, or approve from the request page above.</p>
+        </div>
+      )}
 
       {emergency.length > 0 && (
         <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3">
@@ -43,7 +88,7 @@ export default async function MaintenancePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {[
           { label:'Open', value: open.length, icon:Clock, color:'text-orange-400' },
           { label:'In Progress', value: inProgress.length, icon:Wrench, color:'text-blue-400' },

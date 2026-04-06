@@ -1,11 +1,12 @@
 'use client'
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LogOut, ChevronRight } from 'lucide-react'
+import { LogOut, ChevronRight, Menu, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn, getInitials } from '@/lib/utils'
-
 import { ReactNode } from 'react'
+
 interface NavItem { href: string; label: string; icon: ReactNode }
 
 interface SidebarProps {
@@ -19,6 +20,7 @@ interface SidebarProps {
 export function Sidebar({ product, navItems, user, accentColor, logo }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   async function signOut() {
     const supabase = createClient()
@@ -27,18 +29,36 @@ export function Sidebar({ product, navItems, user, accentColor, logo }: SidebarP
   }
 
   const planColors: Record<string, string> = {
-    trial: 'bg-yellow-400/10 text-yellow-400',
+    trial:   'bg-yellow-400/10 text-yellow-400',
     starter: 'bg-green-400/10 text-green-400',
-    growth: 'bg-blue-400/10 text-blue-400',
-    pro: 'bg-purple-400/10 text-purple-400',
-    paid: 'bg-green-400/10 text-green-400',
+    growth:  'bg-blue-400/10 text-blue-400',
+    pro:     'bg-purple-400/10 text-purple-400',
+    paid:    'bg-green-400/10 text-green-400',
   }
 
-  return (
-    <aside className="w-64 h-screen flex flex-col bg-slate-900 border-r border-slate-800 fixed left-0 top-0 z-40">
+  // Fix active state: don't highlight parent when a more-specific child route is in the list
+  function isActive(item: NavItem) {
+    if (pathname === item.href) return true
+    if (!pathname.startsWith(item.href + '/')) return false
+    // Don't activate parent if another nav item is a more specific match
+    return !navItems.some(
+      other => other.href !== item.href && other.href.startsWith(item.href + '/')
+    )
+  }
+
+  const sidebarContent = (
+    <aside
+      className={cn(
+        'w-64 h-screen flex flex-col bg-slate-900 border-r border-slate-800 fixed left-0 top-0 z-40',
+        'transition-transform duration-200 ease-in-out',
+        'md:translate-x-0',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      )}
+      aria-label="Main navigation"
+    >
       {/* LOGO */}
-      <div className="p-6 border-b border-slate-800">
-        <Link href="/" className="flex items-center gap-2">
+      <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
           <div className={`w-8 h-8 rounded-lg ${accentColor} flex items-center justify-center flex-shrink-0`}>
             <span className="text-white text-xs font-bold">{logo}</span>
           </div>
@@ -47,16 +67,29 @@ export function Sidebar({ product, navItems, user, accentColor, logo }: SidebarP
             <p className="text-xs text-slate-500 capitalize mt-0.5">{product}OS</p>
           </div>
         </Link>
+        {/* Close button on mobile */}
+        <button
+          className="md:hidden text-slate-500 hover:text-slate-300 transition-colors"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close menu"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* NAV */}
-      <nav className="flex-1 overflow-y-auto p-3">
+      <nav className="flex-1 overflow-y-auto p-3" role="navigation">
         <ul className="space-y-0.5">
           {navItems.map(item => {
-            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            const active = isActive(item)
             return (
               <li key={item.href}>
-                <Link href={item.href} className={cn(active ? 'nav-item-active' : 'nav-item')}>
+                <Link
+                  href={item.href}
+                  className={cn(active ? 'nav-item-active' : 'nav-item')}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => setMobileOpen(false)}
+                >
                   {item.icon}
                   {item.label}
                   {active && <ChevronRight className="w-3 h-3 ml-auto text-slate-600" />}
@@ -79,11 +112,35 @@ export function Sidebar({ product, navItems, user, accentColor, logo }: SidebarP
               {user.plan || 'trial'}
             </span>
           </div>
-          <button onClick={signOut} className="text-slate-600 hover:text-slate-400 transition-colors" title="Sign out">
+          <button onClick={signOut} className="text-slate-600 hover:text-slate-400 transition-colors" title="Sign out" aria-label="Sign out">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>
     </aside>
+  )
+
+  return (
+    <>
+      {/* Mobile hamburger — fixed top-left, hidden on md+ */}
+      <button
+        className="md:hidden fixed top-4 left-4 z-50 w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors shadow-lg"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open menu"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      {/* Overlay backdrop on mobile */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {sidebarContent}
+    </>
   )
 }
