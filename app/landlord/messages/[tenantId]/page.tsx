@@ -33,6 +33,7 @@ export default async function MessageThreadPage({ params }: { params: Promise<{ 
     .eq('tenant_id', tenantId)
     .eq('owner_id', user!.id)
     .eq('sender', 'tenant')
+    .eq('read', false)
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">

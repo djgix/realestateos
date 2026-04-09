@@ -30,7 +30,7 @@ export default function LeaseActions({ lease }: { lease: any }) {
       await supabase
         .from('rent_payments')
         .update({ status: 'cancelled' })
-        .eq('tenant_id', lease.tenant_id)
+        .eq('lease_id', lease.id)
         .eq('status', 'pending')
         .gte('due_date', today)
       toast.success('Lease terminated. Future payments cancelled.')
@@ -46,7 +46,16 @@ export default function LeaseActions({ lease }: { lease: any }) {
     const supabase = createClient()
 
     // Activate the lease
-    await supabase.from('leases').update({ status: 'active' }).eq('id', lease.id)
+    const { error: activateError } = await supabase
+      .from('leases')
+      .update({ status: 'active' })
+      .eq('id', lease.id)
+
+    if (activateError) {
+      toast.error('Failed to activate lease')
+      setLoading(null)
+      return
+    }
 
     // Auto-generate 12 months of rent payment records
     const records = []
@@ -56,6 +65,10 @@ export default function LeaseActions({ lease }: { lease: any }) {
     for (let i = 0; i < 12; i++) {
       const dueDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, dueDay)
       if (dueDate > new Date(lease.end_date)) break
+      const y = dueDate.getFullYear()
+      const m = String(dueDate.getMonth() + 1).padStart(2, '0')
+      const d = String(dueDate.getDate()).padStart(2, '0')
+      const dateStr = `${y}-${m}-${d}`
       records.push({
         owner_id: lease.owner_id,
         property_id: lease.property_id,
@@ -63,7 +76,7 @@ export default function LeaseActions({ lease }: { lease: any }) {
         lease_id: lease.id,
         amount: lease.monthly_rent,
         total_amount: lease.monthly_rent,
-        due_date: dueDate.toISOString().split('T')[0],
+        due_date: dateStr,
         status: 'pending',
         collections_actions_sent: [],
       })

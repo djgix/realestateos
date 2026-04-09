@@ -23,7 +23,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       `${tenant.first_name} ${tenant.last_name}`
     )
     customerId = customer.id
-    await db.from('tenants').update({ stripe_customer_id: customerId }).eq('id', tenant.id)
+    // Only update if stripe_customer_id is still null (atomic guard against concurrent requests)
+    const { error: updateError } = await db
+      .from('tenants')
+      .update({ stripe_customer_id: customerId })
+      .eq('id', tenant.id)
+      .is('stripe_customer_id', null)
+    if (updateError) {
+      // Another request won the race — re-fetch to get the definitive customer ID
+      const { data: freshTenant } = await db
+        .from('tenants')
+        .select('stripe_customer_id')
+        .eq('id', tenant.id)
+        .single()
+      if (freshTenant?.stripe_customer_id) {
+        customerId = freshTenant.stripe_customer_id
+      }
+    }
   }
 
   const session = await getStripe().checkout.sessions.create({

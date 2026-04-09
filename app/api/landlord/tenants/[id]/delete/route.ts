@@ -21,13 +21,14 @@ export async function DELETE(
   if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Block if active lease
-  const { count: activeLeases } = await supabase
+  const { count: activeLeases, error: leasesError } = await supabase
     .from('leases')
     .select('id', { count: 'exact', head: true })
     .eq('tenant_id', id)
     .in('status', ['active', 'draft', 'sent'])
 
-  if ((activeLeases ?? 0) > 0) {
+  if (leasesError) return NextResponse.json({ error: 'Failed to verify leases' }, { status: 500 })
+  if ((activeLeases ?? 1) > 0) {
     return NextResponse.json(
       { error: 'Cannot delete tenant with an active lease. Terminate the lease first.' },
       { status: 409 }

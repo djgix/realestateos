@@ -8,12 +8,13 @@ export async function GET(
   const { token } = await params
   const supabase = getServiceClient() as any
 
-  const { data: tenant } = await supabase
+  const { data: tenant, error: tenantError } = await supabase
     .from('tenants')
     .select('id, property_id, properties(name)')
     .eq('portal_token', token)
     .single()
 
+  if (tenantError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   if (!tenant) return NextResponse.json({ error: 'Invalid token' }, { status: 404 })
 
   // Find the next pending or late payment

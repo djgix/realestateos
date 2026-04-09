@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
     if (!landlordProfile?.email) continue
 
     const daysLeft = getDaysUntil(lease.end_date)
-    // Only send at 60, 30, 14, and 7 day marks to avoid spam
-    if (![60, 30, 14, 7].some(d => Math.abs(daysLeft - d) <= 1)) continue
+    // Only send at exact 60, 30, 14, and 7 day marks to avoid duplicate reminders
+    if (![60, 30, 14, 7].includes(daysLeft)) continue
 
     const tenantName = lease.tenants
       ? `${lease.tenants.first_name} ${lease.tenants.last_name}`

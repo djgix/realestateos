@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+function csvCell(value: string | number | null | undefined): string {
+  const str = String(value ?? '')
+  const escaped = str.replace(/"/g, '""')
+  // Sanitize formula injection
+  if (/^[=+\-@]/.test(escaped)) return `"'${escaped}"`
+  return `"${escaped}"`
+}
+
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -25,7 +33,7 @@ export async function GET() {
     ]),
   ]
 
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const csv = rows.map(r => r.map(v => csvCell(v)).join(',')).join('\n')
 
   return new NextResponse(csv, {
     headers: {

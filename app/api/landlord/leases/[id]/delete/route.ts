@@ -27,7 +27,12 @@ export async function DELETE(
     )
   }
 
-  const { error } = await supabase.from('leases').delete().eq('id', id)
+  const { error } = await supabase
+    .from('leases')
+    .delete()
+    .eq('id', id)
+    .eq('owner_id', user.id)
+    .eq('status', 'draft')
   if (error) return NextResponse.json({ error: 'Failed to delete lease' }, { status: 500 })
 
   return NextResponse.json({ success: true })

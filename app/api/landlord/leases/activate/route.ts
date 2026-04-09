@@ -18,7 +18,11 @@ export async function POST(req: NextRequest) {
     .eq('owner_id', user.id)
     .single()
 
-  if (!lease?.tenants?.email || !lease.tenants?.portal_token) {
+  if (!lease) {
+    return NextResponse.json({ error: 'Lease not found' }, { status: 404 })
+  }
+
+  if (!lease.tenants?.email || !lease.tenants?.portal_token) {
     return NextResponse.json({ skipped: true })
   }
 

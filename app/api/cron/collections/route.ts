@@ -95,13 +95,13 @@ export async function POST(req: NextRequest) {
         const message = interpolate(step.message, vars)
 
         // Send via configured channel
-        if ((step.channel === 'sms' || step.channel === 'both') && tenant.phone && profile.phone) {
+        if ((step.channel === 'sms' || step.channel === 'both') && tenant.phone) {
           await sendSMS(tenant.phone, message)
         }
 
         if (step.channel === 'email' || step.channel === 'both') {
           // Use sendRentReminder format for compatibility
-          if (tenant.email) {
+          if (profile.email) {
             await sendLateRentAlert({
               landlordEmail: profile.email ?? '',
               tenantName: `${tenant.first_name} ${tenant.last_name}`,

@@ -1,16 +1,26 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+function csvCell(value: string | number | null | undefined): string {
+  const str = String(value ?? '')
+  const escaped = str.replace(/"/g, '""')
+  // Sanitize formula injection
+  if (/^[=+\-@]/.test(escaped)) return `"'${escaped}"`
+  return `"${escaped}"`
+}
+
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: tenants } = await supabase
+  const { data: tenants, error: tenantsError } = await supabase
     .from('tenants')
     .select('*, properties(name)')
     .eq('owner_id', user.id)
     .order('created_at', { ascending: false })
+
+  if (tenantsError) return NextResponse.json({ error: 'Failed to fetch tenants' }, { status: 500 })
 
   const rows = [
     ['First Name', 'Last Name', 'Email', 'Phone', 'Status', 'Property', 'Move-in Date', 'Monthly Income', 'Emergency Contact', 'Emergency Phone'],
@@ -28,7 +38,7 @@ export async function GET() {
     ]),
   ]
 
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const csv = rows.map(r => r.map(v => csvCell(v)).join(',')).join('\n')
 
   return new NextResponse(csv, {
     headers: {

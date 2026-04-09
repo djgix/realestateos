@@ -34,17 +34,18 @@ export async function POST(
   const service = getServiceClient()
 
   // Fetch request to verify ownership
-  const { data: request } = await (service
+  const { data: request, error: fetchError } = await (service
     .from('maintenance_requests') as any)
     .select('*, tenants(first_name, last_name, email), properties(address, city, state)')
     .eq('id', id)
     .eq('owner_id', user.id)
-    .single() as { data: Record<string, any> | null }
+    .single() as { data: Record<string, any> | null; error: any }
 
+  if (fetchError) return NextResponse.json({ error: 'Failed to fetch request' }, { status: 500 })
   if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Update request
-  await (service
+  const { error: updateError } = await (service
     .from('maintenance_requests') as any)
     .update({
       status: 'in_progress',
@@ -55,6 +56,8 @@ export async function POST(
       contractor_email: contractor_email || (request as any).contractor_email,
     })
     .eq('id', id)
+
+  if (updateError) return NextResponse.json({ error: 'Failed to update request' }, { status: 500 })
 
   const address = request.properties
     ? `${request.properties.address}, ${request.properties.city}, ${request.properties.state}`

@@ -32,10 +32,7 @@ export async function POST(
     return NextResponse.json({ error: 'Only active leases can be renewed' }, { status: 400 })
   }
 
-  // Mark old lease as expired
-  await supabase.from('leases').update({ status: 'expired' }).eq('id', id)
-
-  // Create new lease
+  // Create new lease first — mark old lease expired only after success
   const { data: newLease, error } = await supabase
     .from('leases')
     .insert({
@@ -61,6 +58,15 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to create renewal lease' }, { status: 500 })
   }
 
+  // Mark old lease as expired now that the new lease exists
+  const { error: expireError } = await supabase
+    .from('leases')
+    .update({ status: 'expired' })
+    .eq('id', id)
+  if (expireError) {
+    return NextResponse.json({ error: 'Failed to expire old lease' }, { status: 500 })
+  }
+
   // Generate 12 months of rent payment records for new lease
   const records = []
   const startD = new Date(start_date)
@@ -84,7 +90,10 @@ export async function POST(
   }
 
   if (records.length > 0) {
-    await supabase.from('rent_payments').insert(records)
+    const { error: paymentsError } = await supabase.from('rent_payments').insert(records)
+    if (paymentsError) {
+      return NextResponse.json({ error: 'Failed to create payment records' }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ new_lease_id: newLease.id })

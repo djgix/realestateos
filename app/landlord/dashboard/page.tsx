@@ -71,7 +71,7 @@ export default async function LandlordDashboard() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   // Build a real feed of recent automated events
-  type FeedEvent = { id: string; icon: string; color: string; borderColor: string; title: string; subtitle: string; time: string; source: string }
+  type FeedEvent = { id: string; icon: string; color: string; borderColor: string; title: string; subtitle: string; time: string; rawTime: string; source: string }
   const feedEvents: FeedEvent[] = []
 
   for (const d of (recentDispatches || [])) {
@@ -83,6 +83,7 @@ export default async function LandlordDashboard() {
       title: `Contractor Dispatched`,
       subtitle: `${d.title} — ${(d.properties as any)?.name}`,
       time: formatDate(d.updated_at || d.created_at),
+      rawTime: d.updated_at || d.created_at,
       source: 'The Fixer',
     })
   }
@@ -96,6 +97,7 @@ export default async function LandlordDashboard() {
       title: `Tenant Portal Submission`,
       subtitle: `${(p.tenants as any)?.first_name} ${(p.tenants as any)?.last_name} — ${p.title}`,
       time: formatDate(p.created_at),
+      rawTime: p.created_at,
       source: 'Tenant Portal',
     })
   }
@@ -109,11 +111,12 @@ export default async function LandlordDashboard() {
       title: `Late Payment Flagged`,
       subtitle: `${(p as any).tenants?.first_name} ${(p as any).tenants?.last_name} — ${formatCurrency((p as any).total_amount)} overdue`,
       time: formatDate((p as any).due_date),
+      rawTime: (p as any).due_date,
       source: 'The Collector',
     })
   }
 
-  feedEvents.sort((a, b) => b.time.localeCompare(a.time))
+  feedEvents.sort((a, b) => b.rawTime.localeCompare(a.rawTime))
   const showFeed = feedEvents.length > 0
 
   const showOnboarding = !properties?.length && !(profile?.settings as any)?.onboarding_complete

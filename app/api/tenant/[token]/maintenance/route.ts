@@ -50,12 +50,6 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to submit request' }, { status: 500 })
   }
 
-  // Update landlord_notified_at
-  await supabase
-    .from('maintenance_requests')
-    .update({ landlord_notified_at: new Date().toISOString() })
-    .eq('id', request.id)
-
   // SMS landlord if they have a phone number
   const landlordProfile = Array.isArray(tenant.profiles) ? tenant.profiles[0] : tenant.profiles
   const address = tenant.properties
@@ -65,32 +59,42 @@ export async function POST(
   const tenantName = `${tenant.first_name} ${tenant.last_name}`
   const normalizedPriority = priority || 'normal'
 
-  // SMS notification
-  if (landlordProfile?.phone) {
-    await notifyLandlordMaintenance({
-      landlordPhone: landlordProfile.phone,
-      tenantName,
-      address,
-      title,
-      description,
-      category,
-      priority: normalizedPriority,
-    })
+  try {
+    // SMS notification
+    if (landlordProfile?.phone) {
+      await notifyLandlordMaintenance({
+        landlordPhone: landlordProfile.phone,
+        tenantName,
+        address,
+        title,
+        description,
+        category,
+        priority: normalizedPriority,
+      })
+    }
+
+    // Email notification
+    if (landlordProfile?.email) {
+      await sendMaintenanceAlert({
+        landlordEmail: landlordProfile.email,
+        tenantName,
+        address,
+        title,
+        description,
+        category,
+        priority: normalizedPriority,
+        requestId: request.id,
+      })
+    }
+  } catch (notifyErr) {
+    console.error('Failed to send landlord notification:', notifyErr)
   }
 
-  // Email notification
-  if (landlordProfile?.email) {
-    await sendMaintenanceAlert({
-      landlordEmail: landlordProfile.email,
-      tenantName,
-      address,
-      title,
-      description,
-      category,
-      priority: normalizedPriority,
-      requestId: request.id,
-    })
-  }
+  // Update landlord_notified_at after notifications are sent
+  await supabase
+    .from('maintenance_requests')
+    .update({ landlord_notified_at: new Date().toISOString() })
+    .eq('id', request.id)
 
   return NextResponse.json({ success: true, id: request.id })
 }

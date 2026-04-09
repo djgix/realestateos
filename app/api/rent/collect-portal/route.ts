@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
   }
 
-  if (payment.status === 'paid') {
-    return NextResponse.json({ error: 'Payment already completed' }, { status: 400 })
+  if (payment.status === 'paid' || payment.status === 'pending') {
+    return NextResponse.json({ error: 'Payment already processed or in progress' }, { status: 409 })
   }
 
   // Get landlord stripe account

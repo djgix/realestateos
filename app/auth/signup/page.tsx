@@ -27,7 +27,7 @@ function SignupContent() {
     const supabase = await createClient()
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?product=${product}` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?product=${encodeURIComponent(product)}` },
     })
     if (error) { toast.error(error.message); setGoogleLoading(false) }
   }

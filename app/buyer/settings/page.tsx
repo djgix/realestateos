@@ -15,10 +15,12 @@ export default function BuyerSettingsPage() {
   const [profile, setProfile] = useState<any>(null)
   const [form, setForm] = useState({ full_name: '', email: '', phone: '' })
   const [notifications, setNotifications] = useState({
-    new_listing_match: true,
-    price_drop: true,
-    offer_status: true,
-    showing_confirmed: true,
+    late_rent: false,
+    lease_expiry: false,
+    maintenance: true,
+    payment_received: true,
+    lease_signed: true,
+    weekly: false,
   })
   const [loading, setLoading] = useState(false)
   const [savingNotif, setSavingNotif] = useState(false)
@@ -47,12 +49,16 @@ export default function BuyerSettingsPage() {
 
   async function saveNotifications() {
     setSavingNotif(true)
-    await fetch('/api/landlord/settings/notifications', {
+    const res = await fetch('/api/landlord/settings/notifications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notifications }),
     })
-    toast.success('Notification preferences saved')
+    if (res.ok) {
+      toast.success('Notification preferences saved')
+    } else {
+      toast.error('Failed to save notification preferences')
+    }
     setSavingNotif(false)
   }
 
@@ -121,10 +127,12 @@ export default function BuyerSettingsPage() {
               <h2 className="text-lg font-semibold text-slate-200 mb-6">Notification Preferences</h2>
               <div className="space-y-4">
                 {[
-                  { key: 'new_listing_match', label: 'New listing match', desc: 'Get notified when a listing matches your search criteria' },
-                  { key: 'price_drop', label: 'Price drop alert', desc: 'Get notified when a saved listing drops in price' },
-                  { key: 'offer_status', label: 'Offer status updates', desc: 'Get notified when your offer status changes' },
-                  { key: 'showing_confirmed', label: 'Showing confirmed', desc: 'Get notified when a showing is confirmed' },
+                  { key: 'late_rent', label: 'Late rent alert', desc: 'Get notified when a payment becomes late' },
+                  { key: 'lease_expiry', label: 'Lease expiry reminder', desc: 'Get notified when a lease is approaching expiry' },
+                  { key: 'maintenance', label: 'Maintenance updates', desc: 'Get notified about maintenance request activity' },
+                  { key: 'payment_received', label: 'Payment received', desc: 'Get notified when a payment is received' },
+                  { key: 'lease_signed', label: 'Lease signed', desc: 'Get notified when a lease is signed' },
+                  { key: 'weekly', label: 'Weekly summary', desc: 'Receive a weekly summary of your account activity' },
                 ].map(item => (
                   <div key={item.key} className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl">
                     <div>

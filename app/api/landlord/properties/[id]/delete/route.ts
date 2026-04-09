@@ -21,13 +21,14 @@ export async function DELETE(
   if (!property) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Block if active leases exist
-  const { count: activeLeases } = await supabase
+  const { count: activeLeases, error: leasesError } = await supabase
     .from('leases')
     .select('id', { count: 'exact', head: true })
     .eq('property_id', id)
     .in('status', ['active', 'draft', 'sent'])
 
-  if ((activeLeases ?? 0) > 0) {
+  if (leasesError) return NextResponse.json({ error: 'Failed to verify leases' }, { status: 500 })
+  if ((activeLeases ?? 1) > 0) {
     return NextResponse.json(
       { error: 'Cannot delete property with active or draft leases. Terminate them first.' },
       { status: 409 }
@@ -35,13 +36,14 @@ export async function DELETE(
   }
 
   // Block if active tenants
-  const { count: activeTenants } = await supabase
+  const { count: activeTenants, error: tenantsError } = await supabase
     .from('tenants')
     .select('id', { count: 'exact', head: true })
     .eq('property_id', id)
     .eq('status', 'active')
 
-  if ((activeTenants ?? 0) > 0) {
+  if (tenantsError) return NextResponse.json({ error: 'Failed to verify tenants' }, { status: 500 })
+  if ((activeTenants ?? 1) > 0) {
     return NextResponse.json(
       { error: 'Cannot delete property with active tenants. Archive or reassign them first.' },
       { status: 409 }

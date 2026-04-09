@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   if (messageBody === 'YES' || messageBody === 'Y') {
     // APPROVE — dispatch contractor
-    await supabase
+    const { error: updateError } = await supabase
       .from('maintenance_requests')
       .update({
         landlord_approval_status: 'approved',
@@ -65,6 +65,13 @@ export async function POST(req: NextRequest) {
         dispatched_at: new Date().toISOString(),
       })
       .eq('id', request.id)
+
+    if (updateError) {
+      await replyToLandlord(fromPhone, 'Failed to update request. Please try again or visit your dashboard.')
+      return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        headers: { 'Content-Type': 'text/xml' },
+      })
+    }
 
     // Look up preferred contractor for this category
     const { data: contractor } = await supabase
