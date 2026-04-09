@@ -61,9 +61,15 @@ export default async function LeaseDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary opacity-50 cursor-not-allowed" title="PDF generation coming soon">
+          <a
+            href={`/landlord/leases/${lease.id}/print`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary"
+            title="Open printable lease — use browser Print to save as PDF"
+          >
             <Download className="w-4 h-4" /> Download PDF
-          </button>
+          </a>
         </div>
       </div>
 

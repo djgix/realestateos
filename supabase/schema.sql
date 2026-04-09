@@ -107,7 +107,7 @@ create table public.rent_payments (
   total_amount numeric not null,
   due_date date not null,
   paid_date timestamptz,
-  status text default 'pending' check (status in ('pending','paid','late','partial','failed')),
+  status text default 'pending' check (status in ('pending','paid','late','partial','failed','cancelled')),
   payment_method text check (payment_method in ('ach','card','cash','check','zelle','venmo','other')),
   stripe_payment_intent_id text,
   stripe_transfer_id text,       -- Transfer to landlord's Connect account

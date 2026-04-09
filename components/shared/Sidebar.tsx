@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LogOut, ChevronRight, Menu, X } from 'lucide-react'
+import { LogOut, ChevronRight, Menu, X, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn, getInitials } from '@/lib/utils'
 import { ReactNode } from 'react'
@@ -21,6 +21,7 @@ export function Sidebar({ product, navItems, user, accentColor, logo }: SidebarP
   const pathname = usePathname()
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   async function signOut() {
     const supabase = createClient()
@@ -76,6 +77,32 @@ export function Sidebar({ product, navItems, user, accentColor, logo }: SidebarP
           <X className="w-5 h-5" />
         </button>
       </div>
+
+      {/* SEARCH — only for landlord */}
+      {product === 'landlord' && (
+        <div className="px-3 pt-3 pb-1">
+          <form
+            onSubmit={e => {
+              e.preventDefault()
+              if (searchQuery.trim()) {
+                router.push(`/landlord/search?q=${encodeURIComponent(searchQuery.trim())}`)
+                setSearchQuery('')
+                setMobileOpen(false)
+              }
+            }}
+            className="relative"
+          >
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search…"
+              className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pl-8 pr-3 py-2 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:border-brand-500/50 transition-colors"
+            />
+          </form>
+        </div>
+      )}
 
       {/* NAV */}
       <nav className="flex-1 overflow-y-auto p-3" role="navigation">

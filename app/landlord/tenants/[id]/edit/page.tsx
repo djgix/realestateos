@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Save, Loader2 } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
@@ -12,6 +12,7 @@ export default function EditTenantPage() {
   const id = params.id as string
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
     emergency_contact_name: '', emergency_contact_phone: '',
@@ -59,6 +60,20 @@ export default function EditTenantPage() {
       toast.error('Failed to save changes')
     }
     setSaving(false)
+  }
+
+  async function handleDelete() {
+    if (!confirm('Delete this tenant? This cannot be undone.')) return
+    setDeleting(true)
+    const res = await fetch(`/api/landlord/tenants/${id}/delete`, { method: 'DELETE' })
+    if (res.ok) {
+      toast.success('Tenant deleted')
+      router.push('/landlord/tenants')
+    } else {
+      const { error } = await res.json()
+      toast.error(error || 'Failed to delete tenant')
+      setDeleting(false)
+    }
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>
@@ -140,6 +155,15 @@ export default function EditTenantPage() {
             Save Changes
           </button>
           <Link href={`/landlord/tenants/${id}`} className="btn-secondary">Cancel</Link>
+        </div>
+
+        <div className="card p-6 border border-red-500/20">
+          <h2 className="section-title text-red-400 mb-2">Danger Zone</h2>
+          <p className="text-slate-500 text-sm mb-4">Deleting a tenant is permanent. Tenants with active leases cannot be deleted.</p>
+          <button type="button" onClick={handleDelete} disabled={deleting} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium">
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Delete Tenant
+          </button>
         </div>
       </form>
     </div>

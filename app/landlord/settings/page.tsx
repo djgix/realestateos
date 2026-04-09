@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 
 const PLANS = [
   { id:'starter', name:'Starter', price:19, features:['2 properties','4 units','Rent collection','Lease generation'] },
-  { id:'growth',  name:'Growth',  price:39, features:['10 properties','Unlimited units','Legal center','Schedule E','Background checks'] },
+  { id:'growth',  name:'Growth',  price:39, features:['10 properties','Unlimited units','Legal center','Schedule E','Priority email support'] },
   { id:'pro',     name:'Pro',     price:79, features:['Unlimited everything','Team access','Priority support','API access'] },
 ]
 

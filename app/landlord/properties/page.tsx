@@ -42,7 +42,12 @@ export default async function PropertiesPage() {
             const active = p.tenants?.filter((t: any) => t.status === 'active').length || 0
             const occ = p.units > 0 ? Math.round((active / p.units) * 100) : 0
             return (
-              <Link key={p.id} href={`/landlord/properties/${p.id}`} className="card p-6 hover:border-slate-700 transition-all group">
+              <Link key={p.id} href={`/landlord/properties/${p.id}`} className="card overflow-hidden hover:border-slate-700 transition-all group">
+                {p.photo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.photo_url} alt={p.name} className="w-full h-36 object-cover" />
+                )}
+                <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="w-12 h-12 bg-landlord/10 rounded-xl flex items-center justify-center">
                     <Building2 className="w-6 h-6 text-landlord" />
@@ -74,6 +79,7 @@ export default async function PropertiesPage() {
                 </div>
                 <div className="flex items-center gap-1 mt-4 text-landlord text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                   View details <ArrowRight className="w-3.5 h-3.5" />
+                </div>
                 </div>
               </Link>
             )

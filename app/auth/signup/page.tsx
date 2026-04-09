@@ -27,7 +27,7 @@ function SignupContent() {
     const supabase = await createClient()
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?product=${product}` },
     })
     if (error) { toast.error(error.message); setGoogleLoading(false) }
   }
@@ -44,7 +44,18 @@ function SignupContent() {
     })
     if (error) { toast.error(error.message); setLoading(false) }
     else {
-      await supabase.from('profiles').update({ product }).eq('email', form.email)
+      await supabase.from('profiles').update({
+        product,
+        collections_config: {
+          enabled: false,
+          grace_days: 3,
+          steps: [
+            { day: 1, label: 'Friendly Reminder', channel: 'sms', auto_send: true, message: 'Hi {first_name}, just a friendly reminder that your rent of {amount} was due. Please pay at your earliest convenience.' },
+            { day: 5, label: 'Formal Notice', channel: 'email', auto_send: true, message: 'Dear {first_name}, your rent of {amount} is now {days_late} days overdue. Please remit payment immediately to avoid further action.' },
+            { day: 14, label: 'Legal Notice', channel: 'email', auto_send: false, message: 'This is a formal notice that {amount} remains unpaid after {days_late} days. Failure to pay may result in eviction proceedings.' },
+          ],
+        },
+      }).eq('email', form.email)
       toast.success('Account created!')
       const dest = product === 'seller' ? '/seller/dashboard' : product === 'buyer' ? '/buyer/dashboard' : '/landlord/dashboard'
       router.push(dest)

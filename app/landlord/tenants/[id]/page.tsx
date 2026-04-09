@@ -123,7 +123,7 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
               </div>
             )}
             {tenant.portal_token && (
-              <CopyPortalLink portalToken={tenant.portal_token} />
+              <CopyPortalLink portalToken={tenant.portal_token} tenantId={tenant.id} />
             )}
           </div>
         </div>

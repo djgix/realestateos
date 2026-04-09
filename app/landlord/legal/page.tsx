@@ -172,9 +172,14 @@ export default function LegalPage() {
               ))}
             </div>
           ) : (
-            <div className="card p-8 text-center">
-              <Info className="w-8 h-8 mx-auto mb-3 text-slate-600" />
-              <p className="text-slate-500 text-sm">State law data not yet available for this state. Check your state's official landlord-tenant law resources.</p>
+            <div className="card p-8 text-center border-yellow-500/20">
+              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-yellow-500/60" />
+              <p className="text-slate-300 font-medium mb-2">State data coming soon</p>
+              <p className="text-slate-500 text-sm mb-4">
+                We currently cover: CA, NY, TX, FL, IL, WA, CO, GA, AZ, NC, OH, MI, PA, NJ, and NV.
+                More states are added regularly.
+              </p>
+              <p className="text-slate-600 text-xs">In the meantime, check your state's official landlord-tenant law resources or consult a local attorney.</p>
             </div>
           )}
           <p className="text-xs text-slate-600 mt-6 text-center">Laws change frequently. Always verify with your state's official resources or a local attorney.</p>

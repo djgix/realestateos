@@ -1,7 +1,7 @@
 import { getServiceClient } from '@/lib/supabase/service'
 import { notFound } from 'next/navigation'
 import { formatCurrency, formatDate, CONTRACTOR_TYPE } from '@/lib/utils'
-import { Wrench, DollarSign, Home, Clock, CheckCircle, AlertTriangle, Plus } from 'lucide-react'
+import { Wrench, DollarSign, Home, Clock, CheckCircle, AlertTriangle, Plus, Building2 } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function TenantPortal({ params }: { params: Promise<{ token: string }> }) {
@@ -25,6 +25,20 @@ export default async function TenantPortal({ params }: { params: Promise<{ token
         <div className="text-center">
           <h1 className="text-2xl font-display text-slate-300 mb-2">Portal Unavailable</h1>
           <p className="text-slate-500">Contact your landlord for assistance.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (tenant.status === 'past' || tenant.status === 'evicted') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Home className="w-7 h-7 text-slate-500" />
+          </div>
+          <h1 className="text-2xl font-display text-slate-300 mb-2">Portal Access Ended</h1>
+          <p className="text-slate-500 text-sm">Your tenancy has ended. Please contact your landlord if you need assistance with your records or security deposit.</p>
         </div>
       </div>
     )
@@ -87,12 +101,21 @@ export default async function TenantPortal({ params }: { params: Promise<{ token
                   </p>
                 )}
               </div>
-              <Link
-                href={`/tenant/${token}/pay`}
-                className="bg-landlord hover:bg-landlord/90 text-white px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors"
-              >
-                <DollarSign className="w-4 h-4" /> Pay Rent
-              </Link>
+              {tenant.stripe_customer_id ? (
+                <Link
+                  href={`/tenant/${token}/pay`}
+                  className="bg-landlord hover:bg-landlord/90 text-white px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors"
+                >
+                  <DollarSign className="w-4 h-4" /> Pay Rent
+                </Link>
+              ) : (
+                <Link
+                  href={`/tenant/${token}/payment-setup`}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors"
+                >
+                  <Building2 className="w-4 h-4" /> Add Payment Method
+                </Link>
+              )}
             </div>
             {recentPayments && recentPayments.length > 0 && (
               <div className="border-t border-slate-800 pt-4 space-y-2">

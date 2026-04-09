@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/supabase/service'
 import { notifyLandlordMaintenance } from '@/lib/twilio'
+import { sendMaintenanceAlert } from '@/lib/emails'
 
 export async function POST(
   req: NextRequest,
@@ -61,15 +62,33 @@ export async function POST(
     ? `${tenant.properties.address}, ${tenant.properties.city}, ${tenant.properties.state}`
     : 'Unknown address'
 
+  const tenantName = `${tenant.first_name} ${tenant.last_name}`
+  const normalizedPriority = priority || 'normal'
+
+  // SMS notification
   if (landlordProfile?.phone) {
     await notifyLandlordMaintenance({
       landlordPhone: landlordProfile.phone,
-      tenantName: `${tenant.first_name} ${tenant.last_name}`,
+      tenantName,
       address,
       title,
       description,
       category,
-      priority: priority || 'normal',
+      priority: normalizedPriority,
+    })
+  }
+
+  // Email notification
+  if (landlordProfile?.email) {
+    await sendMaintenanceAlert({
+      landlordEmail: landlordProfile.email,
+      tenantName,
+      address,
+      title,
+      description,
+      category,
+      priority: normalizedPriority,
+      requestId: request.id,
     })
   }
 

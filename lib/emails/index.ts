@@ -214,6 +214,32 @@ export async function sendContractorDispatch({ contractorEmail, contractorName, 
   })
 }
 
+// ─── MAINTENANCE ALERT (to landlord) ─────────────────────
+export async function sendMaintenanceAlert({ landlordEmail, tenantName, address, title, description, category, priority, requestId }: {
+  landlordEmail: string; tenantName: string; address: string; title: string; description: string; category: string; priority: string; requestId: string
+}) {
+  const priorityColor = priority === 'emergency' ? '#f87171' : priority === 'high' ? '#fb923c' : '#60a5fa'
+  await getResend().emails.send({
+    from: FROM, to: landlordEmail,
+    subject: `🔧 New maintenance request: ${title}`,
+    html: base(`
+      <h2 style="color:#60a5fa;margin:0 0 20px;">New Maintenance Request</h2>
+      <p>A tenant has submitted a new maintenance request:</p>
+      <div style="background:#1e293b;border-radius:12px;padding:20px;margin:20px 0;">
+        <p><strong>Tenant:</strong> ${tenantName}</p>
+        <p><strong>Property:</strong> ${address}</p>
+        <p><strong>Category:</strong> ${category}</p>
+        <p><strong>Priority:</strong> <span style="color:${priorityColor};text-transform:capitalize;">${priority}</span></p>
+        <p><strong>Issue:</strong> ${title}</p>
+        <p><strong>Description:</strong> ${description}</p>
+      </div>
+      <a href="${APP}/landlord/maintenance/${requestId}" style="display:inline-block;background:#4f6ef7;color:white;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;">
+        View Request →
+      </a>
+    `),
+  })
+}
+
 // ─── MAINTENANCE DECLINED (to tenant) ────────────────────
 export async function sendMaintenanceDeclined({ tenantEmail, tenantName, title }: {
   tenantEmail: string; tenantName: string; title: string

@@ -58,6 +58,7 @@ export default async function ScheduleEPage() {
 
   // Calculate depreciation: IRS allows straight-line depreciation over 27.5 years
   const propertiesWithPrice = (properties || []).filter((p: any) => p.purchase_price > 0)
+  const propertiesMissingPrice = (properties || []).filter((p: any) => !p.purchase_price || p.purchase_price === 0).length
   deductions.line18_depreciation = propertiesWithPrice.reduce(
     (sum: number, p: any) => sum + p.purchase_price / 27.5,
     0
@@ -66,5 +67,5 @@ export default async function ScheduleEPage() {
   const totalExpenses = Object.values(deductions).reduce((a,b) => a + b, 0)
   const netIncome = line3_rents - totalExpenses
 
-  return <ScheduleEClient rents={line3_rents} deductions={deductions} totalExpenses={totalExpenses} netIncome={netIncome} year={new Date().getFullYear()} />
+  return <ScheduleEClient rents={line3_rents} deductions={deductions} totalExpenses={totalExpenses} netIncome={netIncome} year={new Date().getFullYear()} propertiesMissingPrice={propertiesMissingPrice} />
 }

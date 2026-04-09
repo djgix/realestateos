@@ -11,10 +11,14 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
+  const ALLOWED = ['name','address','city','state','zip','type','units','purchase_price',
+    'current_value','mortgage_balance','monthly_mortgage','year_built','square_feet',
+    'bedrooms','bathrooms','notes','photo_url']
+  const safe = Object.fromEntries(Object.entries(body).filter(([k]) => ALLOWED.includes(k)))
 
   const { error } = await supabase
     .from('properties')
-    .update(body)
+    .update(safe)
     .eq('id', id)
     .eq('owner_id', user.id)
 

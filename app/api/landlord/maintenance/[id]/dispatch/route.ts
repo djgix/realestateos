@@ -17,6 +17,20 @@ export async function POST(
   const body = await req.json()
   const { contractor_name, contractor_phone, contractor_email } = body
 
+  // Validate inputs
+  if (contractor_phone) {
+    const phoneRegex = /^\+?[1-9]\d{7,14}$/
+    if (!phoneRegex.test(contractor_phone.replace(/[\s\-().]/g, ''))) {
+      return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 })
+    }
+  }
+  if (contractor_email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(contractor_email)) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+    }
+  }
+
   const service = getServiceClient()
 
   // Fetch request to verify ownership

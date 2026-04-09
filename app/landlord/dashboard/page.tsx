@@ -27,10 +27,10 @@ export default async function LandlordDashboard() {
     { data: expenses },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
-    supabase.from('properties').select('*').eq('owner_id', user!.id),
-    supabase.from('tenants').select('*, properties(*)').eq('owner_id', user!.id),
+    supabase.from('properties').select('*').eq('owner_id', user!.id).limit(100),
+    supabase.from('tenants').select('*, properties(*)').eq('owner_id', user!.id).limit(100),
     supabase.from('maintenance_requests').select('*, properties(*), tenants(*)').eq('owner_id', user!.id).neq('status', 'completed').order('created_at', { ascending: false }).limit(4),
-    supabase.from('rent_payments').select('*, tenants(*), properties(*)').eq('owner_id', user!.id).order('due_date', { ascending: false }),
+    supabase.from('rent_payments').select('*, tenants(*), properties(*)').eq('owner_id', user!.id).order('due_date', { ascending: false }).limit(20),
     supabase.from('leases').select('*').eq('owner_id', user!.id).eq('status', 'active'),
     supabase.from('maintenance_requests').select('*, tenants(first_name, last_name), properties(name)').eq('owner_id', user!.id).eq('landlord_approval_status', 'approved').gte('updated_at', sevenDaysAgo).order('updated_at', { ascending: false }).limit(3),
     supabase.from('maintenance_requests').select('*, tenants(first_name, last_name), properties(name)').eq('owner_id', user!.id).eq('submitted_via', 'tenant').gte('created_at', sevenDaysAgo).order('created_at', { ascending: false }).limit(3),

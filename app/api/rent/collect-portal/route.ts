@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { collectRent } from '@/lib/stripe'
+import { collectRent, getStripe } from '@/lib/stripe'
 import { getServiceClient } from '@/lib/supabase/service'
 
 const toCents = (n: number) => Math.round(n * 100)
@@ -61,6 +61,10 @@ export async function POST(req: NextRequest) {
     landlordAccountId: landlordProfile.stripe_account_id,
     propertyName: payment.properties?.name || 'Rental Property',
     tenantName: `${tenant.first_name} ${tenant.last_name}`,
+  })
+
+  await getStripe().paymentIntents.update(paymentIntent.id, {
+    metadata: { payment_id },
   })
 
   await db

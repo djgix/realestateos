@@ -91,6 +91,11 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+              <div className="text-right -mt-2">
+                <Link href="/auth/forgot-password" className="text-xs text-slate-500 hover:text-brand-400 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
             <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sign in'}
             </button>

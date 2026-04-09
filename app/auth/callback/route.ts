@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
             full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
             email: user.email!,
             avatar_url: user.user_metadata?.avatar_url,
-            product: 'landlord', // default product
+            product: (searchParams.get('product') || 'landlord') as string,
           })
           return NextResponse.redirect(`${origin}/landlord/dashboard`)
         }

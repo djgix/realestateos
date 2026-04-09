@@ -1,15 +1,30 @@
 'use client'
 import { formatCurrency } from '@/lib/utils'
-import { ArrowLeft, Download, Calculator, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Download, Calculator, ShieldCheck, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
-export default function ScheduleEClient({ rents, deductions, totalExpenses, netIncome, year }: any) {
-  
+export default function ScheduleEClient({ rents, deductions, totalExpenses, netIncome, year, propertiesMissingPrice = 0 }: any) {
+
   const handlePrint = () => window.print()
 
   return (
     <div className="animate-fade-in max-w-4xl mx-auto pb-20 print:p-0 print:m-0 print:-mt-10">
-      
+
+      {propertiesMissingPrice > 0 && (
+        <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-start gap-3 print:hidden">
+          <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-yellow-300 font-medium text-sm">
+              {propertiesMissingPrice} {propertiesMissingPrice === 1 ? 'property is' : 'properties are'} missing a purchase price
+            </p>
+            <p className="text-slate-400 text-xs mt-0.5">
+              Without a purchase price, depreciation cannot be calculated for {propertiesMissingPrice === 1 ? 'that property' : 'those properties'}.{' '}
+              <Link href="/landlord/properties" className="text-yellow-400 hover:underline">Add purchase prices →</Link>
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8 print:hidden">
         <Link href="/landlord/finances" className="text-slate-500 hover:text-white flex items-center gap-2 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to Finances
