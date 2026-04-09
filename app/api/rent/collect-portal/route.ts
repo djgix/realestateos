@@ -36,7 +36,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
   }
 
-  if (payment.status === 'paid' || payment.status === 'pending') {
+  // Atomically claim the payment by transitioning status to 'pending' only if it is
+  // currently in a collectible state. This prevents race conditions where two concurrent
+  // requests both see status='open' and both create a PaymentIntent.
+  const { data: claimed, error: claimErr } = await db
+    .from('rent_payments')
+    .update({ status: 'pending' })
+    .eq('id', payment_id)
+    .not('status', 'in', '("paid","pending")')
+    .select()
+    .single()
+
+  if (claimErr || !claimed) {
     return NextResponse.json({ error: 'Payment already processed or in progress' }, { status: 409 })
   }
 
@@ -48,10 +59,14 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!landlordProfile?.stripe_account_id || landlordProfile?.stripe_account_status !== 'active') {
+    // Release the claim so the payment can be retried
+    await db.from('rent_payments').update({ status: payment.status }).eq('id', payment_id)
     return NextResponse.json({ error: 'Landlord has not connected their bank account yet' }, { status: 400 })
   }
 
   if (!tenant.stripe_customer_id) {
+    // Release the claim so the payment can be retried
+    await db.from('rent_payments').update({ status: payment.status }).eq('id', payment_id)
     return NextResponse.json({ error: 'Tenant payment method not set up' }, { status: 400 })
   }
 
@@ -69,7 +84,7 @@ export async function POST(req: NextRequest) {
 
   await db
     .from('rent_payments')
-    .update({ stripe_payment_intent_id: paymentIntent.id, status: 'pending' })
+    .update({ stripe_payment_intent_id: paymentIntent.id })
     .eq('id', payment_id)
 
   return NextResponse.json({

@@ -64,6 +64,8 @@ export async function POST(
     .update({ status: 'expired' })
     .eq('id', id)
   if (expireError) {
+    // Rollback: delete the new lease we just created
+    await supabase.from('leases').delete().eq('id', newLease.id)
     return NextResponse.json({ error: 'Failed to expire old lease' }, { status: 500 })
   }
 
@@ -92,6 +94,9 @@ export async function POST(
   if (records.length > 0) {
     const { error: paymentsError } = await supabase.from('rent_payments').insert(records)
     if (paymentsError) {
+      // Rollback: delete new lease and restore old lease to active
+      await supabase.from('leases').delete().eq('id', newLease.id)
+      await supabase.from('leases').update({ status: 'active' }).eq('id', id)
       return NextResponse.json({ error: 'Failed to create payment records' }, { status: 500 })
     }
   }

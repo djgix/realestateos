@@ -5,7 +5,7 @@ function csvCell(value: string | number | null | undefined): string {
   const str = String(value ?? '')
   const escaped = str.replace(/"/g, '""')
   // Sanitize formula injection
-  if (/^[=+\-@]/.test(escaped)) return `"'${escaped}"`
+  if (/^[\s\t\r\n]*[=+\-@]/.test(escaped)) return `"'${escaped}"`
   return `"${escaped}"`
 }
 

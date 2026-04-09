@@ -59,6 +59,7 @@ export async function POST(
   const tenantName = `${tenant.first_name} ${tenant.last_name}`
   const normalizedPriority = priority || 'normal'
 
+  let notified = false
   try {
     // SMS notification
     if (landlordProfile?.phone) {
@@ -86,15 +87,19 @@ export async function POST(
         requestId: request.id,
       })
     }
+
+    notified = true
   } catch (notifyErr) {
     console.error('Failed to send landlord notification:', notifyErr)
   }
 
-  // Update landlord_notified_at after notifications are sent
-  await supabase
-    .from('maintenance_requests')
-    .update({ landlord_notified_at: new Date().toISOString() })
-    .eq('id', request.id)
+  // Only update landlord_notified_at if notifications were actually sent
+  if (notified) {
+    await supabase
+      .from('maintenance_requests')
+      .update({ landlord_notified_at: new Date().toISOString() })
+      .eq('id', request.id)
+  }
 
   return NextResponse.json({ success: true, id: request.id })
 }
