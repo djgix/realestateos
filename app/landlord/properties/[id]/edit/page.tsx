@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Save, Loader2, Trash2, Camera, X } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import toast from 'react-hot-toast'
 import { US_STATES } from '@/lib/utils'
 
@@ -240,8 +241,7 @@ export default function EditPropertyPage() {
           <h2 className="section-title">Property Photo</h2>
           {photoUrl ? (
             <div className="relative w-full h-48 rounded-xl overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photoUrl} alt="Property" className="w-full h-full object-cover" />
+              <Image src={photoUrl} alt="Property" fill sizes="(max-width: 768px) 100vw, 600px" className="object-cover" />
               <button
                 type="button"
                 onClick={handleRemovePhoto}

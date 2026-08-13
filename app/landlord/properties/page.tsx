@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { formatCurrency } from '@/lib/utils'
 import { Building2, Plus, MapPin, ArrowRight, Users } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export const metadata: Metadata = { title: 'Properties | REALESTATEos' }
 
@@ -44,8 +45,9 @@ export default async function PropertiesPage() {
             return (
               <Link key={p.id} href={`/landlord/properties/${p.id}`} className="card overflow-hidden hover:border-slate-700 transition-all group">
                 {p.photo_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.photo_url} alt={p.name} className="w-full h-36 object-cover" />
+                  <div className="relative w-full h-36">
+                    <Image src={p.photo_url} alt={p.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw" className="object-cover" />
+                  </div>
                 )}
                 <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
