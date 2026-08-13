@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { productDashboardPath } from '@/lib/utils'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -23,9 +24,11 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname
   const isProtected = path.startsWith('/landlord') || path.startsWith('/seller') || path.startsWith('/buyer')
-  // Password recovery lands here with a freshly-exchanged session — it must not be
-  // bounced away by the "already logged in" redirect below like every other /auth/* page.
-  const isAuth = path.startsWith('/auth') && path !== '/auth/reset-password'
+  // /auth/callback and /auth/reset-password must not be bounced away by the "already
+  // logged in" redirect below: a user requesting a password reset while still holding
+  // a stale session would otherwise have their recovery `code` intercepted here and
+  // discarded before /auth/callback ever gets to exchange it for a session.
+  const isAuth = path.startsWith('/auth') && path !== '/auth/reset-password' && path !== '/auth/callback'
 
   if (isProtected && !user) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
@@ -34,10 +37,7 @@ export async function middleware(request: NextRequest) {
   if (isAuth && user) {
     // Redirect to appropriate dashboard based on their product
     const { data: profile } = await supabase.from('profiles').select('product').eq('id', user.id).single()
-    const dest = profile?.product === 'seller' ? '/seller/dashboard'
-               : profile?.product === 'buyer'  ? '/buyer/dashboard'
-               : '/landlord/dashboard'
-    return NextResponse.redirect(new URL(dest, request.url))
+    return NextResponse.redirect(new URL(productDashboardPath(profile?.product), request.url))
   }
 
   return response

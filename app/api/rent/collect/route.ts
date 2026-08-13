@@ -35,34 +35,48 @@ export async function POST(req: NextRequest) {
 
   // Atomically claim the payment before creating a PaymentIntent, so a double-submit or a
   // collect call racing the Stripe webhook can't create two intents for the same payment.
+  // rent_payments.status normally sits at 'pending' from the moment the row is created
+  // (see LeaseActions.tsx), so it can't be used as a "claimed" marker — every unpaid
+  // payment would already match it. stripe_payment_intent_id is the real signal: it's
+  // null until a collection attempt is in flight, so we claim by setting it to a
+  // temporary marker under a WHERE ... IS NULL guard, then swap in the real intent ID
+  // once Stripe confirms — or clear it back to null on failure so the claim releases.
+  const CLAIMING = 'claiming'
   const { data: claimed, error: claimErr } = await supabase
     .from('rent_payments')
-    .update({ status: 'pending' })
+    .update({ stripe_payment_intent_id: CLAIMING })
     .eq('id', paymentId)
-    .not('status', 'in', '("paid","pending")')
+    .is('stripe_payment_intent_id', null)
+    .or('status.is.null,status.neq.paid')
     .select()
-    .single()
+    .maybeSingle()
 
   if (claimErr || !claimed) {
     return NextResponse.json({ error: 'Payment already processed or in progress' }, { status: 409 })
   }
 
-  // Create payment intent
-  const paymentIntent = await collectRent({
-    amount: toCents(payment.total_amount),
-    tenantCustomerId,
-    landlordAccountId,
-    propertyName: 'Rental Property',
-    tenantName: `${payment.tenants.first_name} ${payment.tenants.last_name}`,
-  })
+  try {
+    // Create payment intent
+    const paymentIntent = await collectRent({
+      amount: toCents(payment.total_amount),
+      tenantCustomerId,
+      landlordAccountId,
+      propertyName: 'Rental Property',
+      tenantName: `${payment.tenants.first_name} ${payment.tenants.last_name}`,
+    })
 
-  // Update payment record with intent ID
-  await supabase.from('rent_payments')
-    .update({ stripe_payment_intent_id: paymentIntent.id })
-    .eq('id', paymentId)
+    // Update payment record with the real intent ID
+    await supabase.from('rent_payments')
+      .update({ stripe_payment_intent_id: paymentIntent.id })
+      .eq('id', paymentId)
 
-  return NextResponse.json({
-    clientSecret: paymentIntent.client_secret,
-    paymentIntentId: paymentIntent.id,
-  })
+    return NextResponse.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    })
+  } catch (err) {
+    // Release the claim so this payment can be retried
+    await supabase.from('rent_payments').update({ stripe_payment_intent_id: null }).eq('id', paymentId)
+    return NextResponse.json({ error: 'Failed to initiate payment. Please try again.' }, { status: 500 })
+  }
 }

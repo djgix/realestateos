@@ -16,7 +16,7 @@ export async function PATCH(
     'notes','property_id']
   const safe = Object.fromEntries(Object.entries(body).filter(([k]) => ALLOWED.includes(k)))
 
-  if (safe.property_id) {
+  if (safe.property_id !== undefined && safe.property_id !== null) {
     const { data: property } = await supabase
       .from('properties')
       .select('id')

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { productDashboardPath } from '@/lib/utils'
 
 const ALLOWED_PRODUCTS = ['landlord', 'seller', 'buyer', 'bundle']
 
@@ -43,15 +44,23 @@ export async function GET(request: NextRequest) {
           if (insertError) {
             return NextResponse.redirect(`${origin}/auth/login?error=oauth_error`)
           }
-          const dest = product === 'seller' ? '/seller/dashboard' : product === 'buyer' ? '/buyer/dashboard' : '/landlord/dashboard'
-          return NextResponse.redirect(`${origin}${dest}`)
+          return NextResponse.redirect(`${origin}${productDashboardPath(product)}`)
         }
 
-        const dest = profile?.product === 'seller' ? '/seller/dashboard'
-                   : profile?.product === 'buyer'  ? '/buyer/dashboard'
-                   : '/landlord/dashboard'
+        // The on_auth_user_created trigger creates a profile with product='none' at
+        // signUp() time, before the browser gets a chance to set the real product —
+        // for confirmation-required signups that browser-side update never runs (no
+        // session exists yet), so backfill it here once a session is established.
+        let effectiveProduct = profile.product
+        if (profile.product === 'none') {
+          const requestedProduct = searchParams.get('product')
+          if (ALLOWED_PRODUCTS.includes(requestedProduct || '')) {
+            effectiveProduct = requestedProduct!
+            await supabase.from('profiles').update({ product: effectiveProduct }).eq('id', user.id)
+          }
+        }
 
-        return NextResponse.redirect(`${origin}${dest}`)
+        return NextResponse.redirect(`${origin}${productDashboardPath(effectiveProduct)}`)
       }
     }
   }

@@ -23,6 +23,13 @@ export const getInitials = (name: string) =>
 export const toCents = (dollars: number) => Math.round(dollars * 100)
 export const toDollars = (cents: number) => cents / 100
 
+// Single source of truth for product → dashboard routing, used by the auth callback,
+// middleware, and reset-password redirect so they can't drift out of sync.
+export const productDashboardPath = (product?: string | null) =>
+  product === 'seller' ? '/seller/dashboard'
+  : product === 'buyer' ? '/buyer/dashboard'
+  : '/landlord/dashboard'
+
 export const US_STATES = [
   { code:'AL',name:'Alabama' },{ code:'AK',name:'Alaska' },{ code:'AZ',name:'Arizona' },
   { code:'AR',name:'Arkansas' },{ code:'CA',name:'California' },{ code:'CO',name:'Colorado' },

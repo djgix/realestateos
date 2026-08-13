@@ -40,21 +40,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
   }
 
-  // Atomically claim the payment by transitioning status to 'pending' only if it is
-  // currently in a collectible state. This prevents race conditions where two concurrent
-  // requests both see status='open' and both create a PaymentIntent.
-  const { data: claimed, error: claimErr } = await db
-    .from('rent_payments')
-    .update({ status: 'pending' })
-    .eq('id', payment_id)
-    .not('status', 'in', '("paid","pending")')
-    .select()
-    .single()
-
-  if (claimErr || !claimed) {
-    return NextResponse.json({ error: 'Payment already processed or in progress' }, { status: 409 })
-  }
-
   // Get landlord stripe account
   const { data: landlordProfile } = await db
     .from('profiles')
@@ -63,36 +48,60 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!landlordProfile?.stripe_account_id || landlordProfile?.stripe_account_status !== 'active') {
-    // Release the claim so the payment can be retried
-    await db.from('rent_payments').update({ status: payment.status }).eq('id', payment_id)
     return NextResponse.json({ error: 'Landlord has not connected their bank account yet' }, { status: 400 })
   }
 
   if (!tenant.stripe_customer_id) {
-    // Release the claim so the payment can be retried
-    await db.from('rent_payments').update({ status: payment.status }).eq('id', payment_id)
     return NextResponse.json({ error: 'Tenant payment method not set up' }, { status: 400 })
   }
 
-  const paymentIntent = await collectRent({
-    amount: toCents(payment.total_amount),
-    tenantCustomerId: tenant.stripe_customer_id,
-    landlordAccountId: landlordProfile.stripe_account_id,
-    propertyName: payment.properties?.name || 'Rental Property',
-    tenantName: `${tenant.first_name} ${tenant.last_name}`,
-  })
-
-  await getStripe().paymentIntents.update(paymentIntent.id, {
-    metadata: { payment_id },
-  })
-
-  await db
+  // Atomically claim the payment before creating a PaymentIntent, so a double-submit
+  // can't create two intents for the same payment. rent_payments.status normally sits
+  // at 'pending' from the moment the row is created (see LeaseActions.tsx), so it can't
+  // be used as a "claimed" marker — every unpaid payment would already match it.
+  // stripe_payment_intent_id is the real signal: it's null until a collection attempt
+  // is in flight, so we claim by setting it to a temporary marker under a
+  // WHERE ... IS NULL guard, then swap in the real intent ID once Stripe confirms — or
+  // clear it back to null on failure so the claim releases.
+  const CLAIMING = 'claiming'
+  const { data: claimed, error: claimErr } = await db
     .from('rent_payments')
-    .update({ stripe_payment_intent_id: paymentIntent.id })
+    .update({ stripe_payment_intent_id: CLAIMING })
     .eq('id', payment_id)
+    .is('stripe_payment_intent_id', null)
+    .or('status.is.null,status.neq.paid')
+    .select()
+    .maybeSingle()
 
-  return NextResponse.json({
-    clientSecret: paymentIntent.client_secret,
-    paymentIntentId: paymentIntent.id,
-  })
+  if (claimErr || !claimed) {
+    return NextResponse.json({ error: 'Payment already processed or in progress' }, { status: 409 })
+  }
+
+  try {
+    const paymentIntent = await collectRent({
+      amount: toCents(payment.total_amount),
+      tenantCustomerId: tenant.stripe_customer_id,
+      landlordAccountId: landlordProfile.stripe_account_id,
+      propertyName: payment.properties?.name || 'Rental Property',
+      tenantName: `${tenant.first_name} ${tenant.last_name}`,
+    })
+
+    await getStripe().paymentIntents.update(paymentIntent.id, {
+      metadata: { payment_id },
+    })
+
+    await db
+      .from('rent_payments')
+      .update({ stripe_payment_intent_id: paymentIntent.id })
+      .eq('id', payment_id)
+
+    return NextResponse.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    })
+  } catch (err) {
+    // Release the claim so this payment can be retried
+    await db.from('rent_payments').update({ stripe_payment_intent_id: null }).eq('id', payment_id)
+    return NextResponse.json({ error: 'Failed to initiate payment. Please try again.' }, { status: 500 })
+  }
 }

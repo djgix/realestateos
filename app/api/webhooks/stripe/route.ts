@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       .from('rent_payments')
       .update({ status: 'paid', paid_date: new Date().toISOString(), stripe_payment_intent_id: paymentIntentId })
       .eq('stripe_payment_intent_id', paymentIntentId)
-      .neq('status', 'paid')
+      .or('status.is.null,status.neq.paid')
       .select('*, tenants(first_name, last_name, email), properties(name)')
       .maybeSingle()
 

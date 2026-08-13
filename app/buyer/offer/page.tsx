@@ -251,10 +251,19 @@ ${form.buyerName || '[Your Name]'}`}
               `}} />
               <p style={{marginBottom: '24px'}}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
               <p style={{marginBottom: '16px'}}>Re: Offer to Purchase — {form.address || '[Property Address]'}, {form.city}, {form.state}</p>
-              <p style={{marginBottom: '16px'}}>Dear Seller,</p>
-              <p style={{whiteSpace: 'pre-wrap', marginBottom: '16px'}}>
-                {form.coverLetter || `I am writing to formally present an offer of ${formatCurrency(offerNum)} for your property at ${form.address}, ${form.city}, ${form.state}.`}
-              </p>
+              {form.coverLetter ? (
+                // The cover-letter template already includes its own greeting and sign-off
+                // (see the placeholder in step 3), so a filled-in letter is rendered whole
+                // rather than wrapped in another greeting/closing.
+                <p style={{whiteSpace: 'pre-wrap', marginBottom: '24px'}}>{form.coverLetter}</p>
+              ) : (
+                <>
+                  <p style={{marginBottom: '16px'}}>Dear Seller,</p>
+                  <p style={{marginBottom: '16px'}}>
+                    I am writing to formally present an offer of {formatCurrency(offerNum)} for your property at {form.address}, {form.city}, {form.state}.
+                  </p>
+                </>
+              )}
               <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '24px'}}>
                 <tbody>
                   {[
@@ -265,7 +274,9 @@ ${form.buyerName || '[Your Name]'}`}
                     ['Closing Date', form.closingDate || '—'],
                     ['Inspection Period', `${form.inspectionDays} days`],
                     ['Contingencies', form.contingencies.join(', ') || 'None'],
-                    ...(form.escalation ? [['Escalation Clause', `Beats competing offers by ${formatCurrency(parseFloat(form.escalationIncrement) || 0)}, up to ${formatCurrency(parseFloat(form.escalationCap) || 0)}`]] : []),
+                    ...(form.escalation && parseFloat(form.escalationIncrement) > 0 && parseFloat(form.escalationCap) > 0
+                      ? [['Escalation Clause', `Beats competing offers by ${formatCurrency(parseFloat(form.escalationIncrement))}, up to ${formatCurrency(parseFloat(form.escalationCap))}`]]
+                      : []),
                   ].map(([label, value]) => (
                     <tr key={label} style={{borderBottom: '1px solid #ddd'}}>
                       <td style={{padding: '8px 0', fontWeight: 600}}>{label}</td>
@@ -274,8 +285,12 @@ ${form.buyerName || '[Your Name]'}`}
                   ))}
                 </tbody>
               </table>
-              <p style={{marginBottom: '8px'}}>Thank you for considering my offer.</p>
-              <p style={{marginBottom: '48px'}}>Sincerely,</p>
+              {!form.coverLetter && (
+                <>
+                  <p style={{marginBottom: '8px'}}>Thank you for considering my offer.</p>
+                  <p style={{marginBottom: '48px'}}>Sincerely,</p>
+                </>
+              )}
               <p>{form.buyerName || '[Your Name]'}</p>
               {form.buyerEmail && <p>{form.buyerEmail}</p>}
             </div>

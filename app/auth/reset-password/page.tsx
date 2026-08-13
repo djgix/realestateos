@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { productDashboardPath } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 export default function ResetPasswordPage() {
@@ -13,6 +14,7 @@ export default function ResetPasswordPage() {
   const [show, setShow] = useState(false)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [dest, setDest] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -27,13 +29,17 @@ export default function ResetPasswordPage() {
     } else {
       setDone(true)
       const { data: { user } } = await supabase.auth.getUser()
-      const { data: profile } = user
+      const { data: profile, error: profileError } = user
         ? await supabase.from('profiles').select('product').eq('id', user.id).single()
-        : { data: null }
-      const dest = profile?.product === 'seller' ? '/seller/dashboard'
-                 : profile?.product === 'buyer'  ? '/buyer/dashboard'
-                 : '/landlord/dashboard'
-      setTimeout(() => router.push(dest), 2000)
+        : { data: null, error: null }
+      if (profileError || !user) {
+        // Don't guess a product dashboard on a failed lookup — let them navigate manually.
+        setDest('/auth/login')
+        return
+      }
+      const target = productDashboardPath(profile?.product)
+      setDest(target)
+      setTimeout(() => router.push(target), 2000)
     }
   }
 
@@ -53,7 +59,14 @@ export default function ResetPasswordPage() {
             <div className="text-center py-4">
               <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
               <h2 className="font-display text-xl text-slate-200 mb-2">Password updated!</h2>
-              <p className="text-slate-500 text-sm">Redirecting you to your dashboard...</p>
+              <p className="text-slate-500 text-sm mb-4">
+                {dest ? 'Redirecting you to your dashboard...' : 'Loading your account...'}
+              </p>
+              {dest && (
+                <Link href={dest} className="text-brand-400 hover:text-brand-300 text-sm">
+                  Continue now →
+                </Link>
+              )}
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">

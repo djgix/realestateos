@@ -1,6 +1,7 @@
 import { getServiceClient } from '@/lib/supabase/service'
 import { notFound } from 'next/navigation'
 import { formatCurrency, formatDate, CONTRACTOR_TYPE } from '@/lib/utils'
+import { isPortalAccessible } from '@/lib/tenant-portal'
 import { Wrench, DollarSign, Home, Clock, CheckCircle, AlertTriangle, Plus, Building2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -30,7 +31,7 @@ export default async function TenantPortal({ params }: { params: Promise<{ token
     )
   }
 
-  if (tenant.status === 'past' || tenant.status === 'evicted') {
+  if (!isPortalAccessible(tenant, profile)) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="text-center max-w-sm">

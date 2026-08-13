@@ -40,7 +40,13 @@ function SignupContent() {
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { full_name: form.fullName, product } }
+      options: {
+        data: { full_name: form.fullName, product },
+        // If the project requires email confirmation, the link in that email needs to
+        // route through our callback (with `product` attached) so it can backfill the
+        // product on the profile row the signup trigger already created with 'none'.
+        emailRedirectTo: `${window.location.origin}/auth/callback?product=${encodeURIComponent(product)}`,
+      }
     })
     if (error) { toast.error(error.message); setLoading(false) }
     else if (!data.user) {

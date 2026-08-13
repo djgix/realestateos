@@ -263,7 +263,7 @@ function NewLeaseContent() {
               disabled={
                 (step === 0 && (!form.property_id || !form.tenant_id)) ||
                 (step === 1 && (!form.start_date || (form.lease_type === 'fixed' && !form.end_date))) ||
-                (step === 2 && (Number(form.monthly_rent) <= 0 || Number(form.security_deposit) < 0 || Number(form.late_fee) < 0))
+                (step === 2 && (Number(form.monthly_rent) <= 0 || Number(form.security_deposit) <= 0 || Number(form.late_fee) < 0))
               }>
               Continue <ArrowRight className="w-4 h-4" />
             </button>

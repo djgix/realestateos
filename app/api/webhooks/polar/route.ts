@@ -41,12 +41,24 @@ export const POST = Webhooks({
       else plan = 'paid'
 
       const existingProfile = await resolveProfile(supabase, { userId: metadata?.user_id, email })
+      // Capture this before updating — it's the "have we welcomed this customer yet"
+      // signal shared with the subscription.created handler below, since Polar doesn't
+      // guarantee event delivery order between the two.
+      const isFirstPolarAssociation = !!existingProfile && !existingProfile.polar_customer_id
 
       if (existingProfile) {
         await supabase
           .from('profiles')
           .update({ plan: planName, product, polar_customer_id: checkout.customerId })
           .eq('id', existingProfile.id)
+
+        if (isFirstPolarAssociation && existingProfile.email) {
+          await sendWelcome({
+            email: existingProfile.email,
+            name: existingProfile.full_name || 'there',
+            product: existingProfile.product || 'landlord',
+          })
+        }
       }
 
       // Log payment — skip if this checkout was already recorded (Polar retries webhooks)
@@ -83,8 +95,11 @@ export const POST = Webhooks({
         if (pid === process.env.NEXT_PUBLIC_POLAR_LANDLORD_GROWTH_ID) planName = 'growth'
         if (pid === process.env.NEXT_PUBLIC_POLAR_LANDLORD_PRO_ID) planName = 'pro'
 
-        // Only write + email if this actually changes the plan, so a webhook
-        // retry doesn't resend the welcome email.
+        // Same "first association" signal used in checkout.updated above — captured
+        // before the update below, since either event can be the one that actually
+        // attaches polar_customer_id first depending on delivery order.
+        const isFirstPolarAssociation = !profile.polar_customer_id
+
         if (profile.plan !== planName || profile.polar_customer_id !== sub.customerId) {
           await supabase.from('profiles').update({
             plan: planName,
@@ -92,7 +107,7 @@ export const POST = Webhooks({
           }).eq('id', profile.id)
         }
 
-        if (profile.plan !== planName && profile.email) {
+        if (isFirstPolarAssociation && profile.email) {
           await sendWelcome({
             email: profile.email,
             name: profile.full_name || 'there',

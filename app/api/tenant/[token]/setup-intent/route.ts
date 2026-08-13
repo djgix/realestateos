@@ -31,23 +31,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     // requests). .select() is required here — without it PostgREST returns 204 with no
     // error regardless of whether the row-matching filter actually matched anything, so
     // the "did we win the race" check would always look like a win.
-    const { data: claimed } = await db
+    const { data: claimed, error: updateError } = await db
       .from('tenants')
       .update({ stripe_customer_id: customerId })
       .eq('id', tenant.id)
       .is('stripe_customer_id', null)
       .select('stripe_customer_id')
       .maybeSingle()
+
+    if (updateError) {
+      return NextResponse.json({ error: 'Failed to set up payment method. Please try again.' }, { status: 500 })
+    }
+
     if (!claimed) {
-      // Another request won the race — re-fetch to get the definitive customer ID
-      const { data: freshTenant } = await db
+      // Another request won the race — re-fetch to get the definitive customer ID.
+      // If this fails, we can't confirm any customer ID was actually persisted, so
+      // abort rather than proceed with the unpersisted one we just created.
+      const { data: freshTenant, error: refetchError } = await db
         .from('tenants')
         .select('stripe_customer_id')
         .eq('id', tenant.id)
         .single()
-      if (freshTenant?.stripe_customer_id) {
-        customerId = freshTenant.stripe_customer_id
+      if (refetchError || !freshTenant?.stripe_customer_id) {
+        return NextResponse.json({ error: 'Failed to set up payment method. Please try again.' }, { status: 500 })
       }
+      customerId = freshTenant.stripe_customer_id
     }
   }
 
