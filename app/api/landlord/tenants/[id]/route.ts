@@ -16,6 +16,16 @@ export async function PATCH(
     'notes','property_id']
   const safe = Object.fromEntries(Object.entries(body).filter(([k]) => ALLOWED.includes(k)))
 
+  if (safe.property_id) {
+    const { data: property } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('id', safe.property_id as string)
+      .eq('owner_id', user.id)
+      .single()
+    if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 })
+  }
+
   const { error } = await supabase
     .from('tenants')
     .update(safe)

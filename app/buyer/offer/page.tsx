@@ -233,12 +233,52 @@ ${form.buyerName || '[Your Name]'}`}
                 </div>
               ))}
             </div>
-            <button className="btn-buyer w-full justify-center py-4 text-base">
+            <button onClick={() => window.print()} className="btn-buyer w-full justify-center py-4 text-base">
               <Download className="w-5 h-5" /> Generate & Download Offer Letter PDF
             </button>
             <p className="text-center text-xs text-slate-500 mt-3">
               This generates a professional offer letter. Have a real estate attorney review before submitting if you have any concerns.
             </p>
+
+            {/* Print-only offer letter — hidden on screen, isolated on print via #printable-offer-letter */}
+            <div className="hidden print:block bg-white text-black p-10" id="printable-offer-letter">
+              <style dangerouslySetInnerHTML={{__html: `
+                @media print {
+                  body * { visibility: hidden; }
+                  #printable-offer-letter, #printable-offer-letter * { visibility: visible; }
+                  #printable-offer-letter { position: absolute; left: 0; top: 0; width: 100%; }
+                }
+              `}} />
+              <p style={{marginBottom: '24px'}}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+              <p style={{marginBottom: '16px'}}>Re: Offer to Purchase — {form.address || '[Property Address]'}, {form.city}, {form.state}</p>
+              <p style={{marginBottom: '16px'}}>Dear Seller,</p>
+              <p style={{whiteSpace: 'pre-wrap', marginBottom: '16px'}}>
+                {form.coverLetter || `I am writing to formally present an offer of ${formatCurrency(offerNum)} for your property at ${form.address}, ${form.city}, ${form.state}.`}
+              </p>
+              <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '24px'}}>
+                <tbody>
+                  {[
+                    ['Offer Amount', formatCurrency(offerNum)],
+                    ['Earnest Money', form.earnestMoney ? formatCurrency(parseFloat(form.earnestMoney)) : '—'],
+                    ['Down Payment', `${form.downPaymentPct}%`],
+                    ['Financing', form.financingType.toUpperCase()],
+                    ['Closing Date', form.closingDate || '—'],
+                    ['Inspection Period', `${form.inspectionDays} days`],
+                    ['Contingencies', form.contingencies.join(', ') || 'None'],
+                    ...(form.escalation ? [['Escalation Clause', `Beats competing offers by ${formatCurrency(parseFloat(form.escalationIncrement) || 0)}, up to ${formatCurrency(parseFloat(form.escalationCap) || 0)}`]] : []),
+                  ].map(([label, value]) => (
+                    <tr key={label} style={{borderBottom: '1px solid #ddd'}}>
+                      <td style={{padding: '8px 0', fontWeight: 600}}>{label}</td>
+                      <td style={{padding: '8px 0', textAlign: 'right'}}>{value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{marginBottom: '8px'}}>Thank you for considering my offer.</p>
+              <p style={{marginBottom: '48px'}}>Sincerely,</p>
+              <p>{form.buyerName || '[Your Name]'}</p>
+              {form.buyerEmail && <p>{form.buyerEmail}</p>}
+            </div>
           </div>
         )}
 

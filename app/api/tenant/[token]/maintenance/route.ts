@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/supabase/service'
 import { notifyLandlordMaintenance } from '@/lib/twilio'
 import { sendMaintenanceAlert } from '@/lib/emails'
+import { isPortalAccessible } from '@/lib/tenant-portal'
 
 export async function POST(
   req: NextRequest,
@@ -20,12 +21,15 @@ export async function POST(
   // Look up tenant by portal token
   const { data: tenant } = await supabase
     .from('tenants')
-    .select('*, properties(name, address, city, state), profiles!owner_id(full_name, phone, email)')
+    .select('*, properties(name, address, city, state), profiles!owner_id(full_name, phone, email, settings)')
     .eq('portal_token', token)
     .single()
 
   if (!tenant) {
     return NextResponse.json({ error: 'Invalid portal link' }, { status: 404 })
+  }
+  if (!isPortalAccessible(tenant, Array.isArray(tenant.profiles) ? tenant.profiles[0] : tenant.profiles)) {
+    return NextResponse.json({ error: 'Portal access unavailable' }, { status: 403 })
   }
 
   // Insert maintenance request

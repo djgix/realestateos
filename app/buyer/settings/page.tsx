@@ -42,8 +42,9 @@ export default function BuyerSettingsPage() {
     setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('profiles').update({ full_name: form.full_name, phone: form.phone || null }).eq('id', user!.id)
-    toast.success('Saved!')
+    const { error } = await supabase.from('profiles').update({ full_name: form.full_name, phone: form.phone || null }).eq('id', user!.id)
+    if (error) toast.error('Failed to save changes')
+    else toast.success('Saved!')
     setLoading(false)
   }
 

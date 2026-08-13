@@ -23,7 +23,9 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname
   const isProtected = path.startsWith('/landlord') || path.startsWith('/seller') || path.startsWith('/buyer')
-  const isAuth = path.startsWith('/auth')
+  // Password recovery lands here with a freshly-exchanged session — it must not be
+  // bounced away by the "already logged in" redirect below like every other /auth/* page.
+  const isAuth = path.startsWith('/auth') && path !== '/auth/reset-password'
 
   if (isProtected && !user) {
     return NextResponse.redirect(new URL('/auth/login', request.url))

@@ -173,21 +173,21 @@ function NewLeaseContent() {
                 <label className="label">Monthly Rent *</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-                  <input required type="number" value={form.monthly_rent} onChange={e => set('monthly_rent', e.target.value)} placeholder="1500" className="input pl-8" />
+                  <input required type="number" min="0.01" step="0.01" value={form.monthly_rent} onChange={e => set('monthly_rent', e.target.value)} placeholder="1500" className="input pl-8" />
                 </div>
               </div>
               <div className="form-group">
                 <label className="label">Security Deposit *</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-                  <input required type="number" value={form.security_deposit} onChange={e => set('security_deposit', e.target.value)} placeholder="1500" className="input pl-8" />
+                  <input required type="number" min="0" step="0.01" value={form.security_deposit} onChange={e => set('security_deposit', e.target.value)} placeholder="1500" className="input pl-8" />
                 </div>
               </div>
               <div className="form-group">
                 <label className="label">Late Fee</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">$</span>
-                  <input type="number" value={form.late_fee} onChange={e => set('late_fee', e.target.value)} className="input pl-8" />
+                  <input type="number" min="0" step="0.01" value={form.late_fee} onChange={e => set('late_fee', e.target.value)} className="input pl-8" />
                 </div>
               </div>
               <div className="form-group">
@@ -263,7 +263,7 @@ function NewLeaseContent() {
               disabled={
                 (step === 0 && (!form.property_id || !form.tenant_id)) ||
                 (step === 1 && (!form.start_date || (form.lease_type === 'fixed' && !form.end_date))) ||
-                (step === 2 && (!form.monthly_rent || !form.security_deposit))
+                (step === 2 && (Number(form.monthly_rent) <= 0 || Number(form.security_deposit) < 0 || Number(form.late_fee) < 0))
               }>
               Continue <ArrowRight className="w-4 h-4" />
             </button>

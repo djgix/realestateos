@@ -12,13 +12,9 @@ export async function POST() {
 
   const service = getServiceClient() as any
 
-  // Delete profile (FK cascade will clean up owned data if schema has ON DELETE CASCADE)
-  const { error: profileError } = await service.from('profiles').delete().eq('id', user.id)
-  if (profileError) {
-    return NextResponse.json({ error: profileError.message }, { status: 500 })
-  }
-
-  // Delete auth user via admin API
+  // profiles.id references auth.users(id) on delete cascade, so deleting the auth user
+  // alone removes the profile row and everything owned by it — no separate profile
+  // delete step, which would otherwise risk orphaning the auth user on partial failure.
   const { error } = await service.auth.admin.deleteUser(user.id)
 
   if (error) {

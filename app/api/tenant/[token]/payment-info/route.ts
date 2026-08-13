@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/supabase/service'
+import { isPortalAccessible } from '@/lib/tenant-portal'
 
 export async function GET(
   _req: NextRequest,
@@ -10,12 +11,15 @@ export async function GET(
 
   const { data: tenant, error: tenantError } = await supabase
     .from('tenants')
-    .select('id, property_id, properties(name)')
+    .select('id, property_id, status, properties(name), profiles!owner_id(settings)')
     .eq('portal_token', token)
     .single()
 
   if (tenantError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   if (!tenant) return NextResponse.json({ error: 'Invalid token' }, { status: 404 })
+  if (!isPortalAccessible(tenant, Array.isArray(tenant.profiles) ? tenant.profiles[0] : tenant.profiles)) {
+    return NextResponse.json({ error: 'Portal access unavailable' }, { status: 403 })
+  }
 
   // Find the next pending or late payment
   const { data: payment } = await supabase

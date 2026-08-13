@@ -37,12 +37,18 @@ function SignupContent() {
     if (form.password.length < 8) { toast.error('Password must be at least 8 characters'); return }
     setLoading(true)
     const supabase = await createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: { data: { full_name: form.fullName, product } }
     })
     if (error) { toast.error(error.message); setLoading(false) }
+    else if (!data.user) {
+      // Email confirmation is required — no session exists yet, so the profile-config
+      // update below (which needs auth.uid()) can't run. Direct them to confirm first.
+      toast.success('Check your email to confirm your account.')
+      setLoading(false)
+    }
     else {
       await supabase.from('profiles').update({
         product,
@@ -55,7 +61,7 @@ function SignupContent() {
             { day: 14, label: 'Legal Notice', channel: 'email', auto_send: false, message: 'This is a formal notice that {amount} remains unpaid after {days_late} days. Failure to pay may result in eviction proceedings.' },
           ],
         },
-      }).eq('email', form.email)
+      }).eq('id', data.user.id)
       toast.success('Account created!')
       const dest = product === 'seller' ? '/seller/dashboard' : product === 'buyer' ? '/buyer/dashboard' : '/landlord/dashboard'
       router.push(dest)

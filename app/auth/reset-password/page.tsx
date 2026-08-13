@@ -26,7 +26,14 @@ export default function ResetPasswordPage() {
       setLoading(false)
     } else {
       setDone(true)
-      setTimeout(() => router.push('/landlord/dashboard'), 2000)
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: profile } = user
+        ? await supabase.from('profiles').select('product').eq('id', user.id).single()
+        : { data: null }
+      const dest = profile?.product === 'seller' ? '/seller/dashboard'
+                 : profile?.product === 'buyer'  ? '/buyer/dashboard'
+                 : '/landlord/dashboard'
+      setTimeout(() => router.push(dest), 2000)
     }
   }
 

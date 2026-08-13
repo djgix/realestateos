@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { getServiceClient } from '@/lib/supabase/service'
 import { sendRentReceipt } from '@/lib/emails'
 
 export async function POST(req: NextRequest) {
@@ -14,19 +14,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  // Webhook requests carry no user session, so the service-role client is required —
+  // the cookie-based client would run as unauthenticated and RLS would silently
+  // block every write below.
+  const supabase = getServiceClient() as any
 
   if (event.type === 'payment_intent.succeeded') {
     const pi = event.data.object as any
     const paymentIntentId = pi.id
 
-    // Update rent payment record
+    // Only transition rows that aren't already paid, so a Stripe retry of this event
+    // doesn't resend the receipt email.
     const { data: payment } = await supabase
       .from('rent_payments')
       .update({ status: 'paid', paid_date: new Date().toISOString(), stripe_payment_intent_id: paymentIntentId })
       .eq('stripe_payment_intent_id', paymentIntentId)
+      .neq('status', 'paid')
       .select('*, tenants(first_name, last_name, email), properties(name)')
-      .single()
+      .maybeSingle()
 
     // Send receipt to tenant
     if (payment?.tenants?.email) {

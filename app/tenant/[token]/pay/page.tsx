@@ -12,16 +12,18 @@ export default function PayRentPage() {
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [paid, setPaid] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     // Fetch tenant's next pending payment info via the portal token
     fetch(`/api/tenant/${token}/payment-info`)
-      .then(r => r.json())
-      .then(data => {
+      .then(async r => {
+        if (!r.ok) { setLoadError(true); setLoading(false); return }
+        const data = await r.json()
         setPaymentInfo(data)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => { setLoadError(true); setLoading(false) })
   }, [token])
 
   async function handlePay() {
@@ -52,6 +54,20 @@ export default function PayRentPage() {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="text-center">
+          <h1 className="font-display text-2xl text-slate-100 mb-2">Something went wrong</h1>
+          <p className="text-slate-400 text-sm mb-6">We couldn't load your payment info. Please try again or contact your landlord.</p>
+          <Link href={`/tenant/${token}`} className="bg-landlord text-white px-6 py-3 rounded-xl font-semibold inline-block">
+            Back to Portal
+          </Link>
+        </div>
       </div>
     )
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { collectRent, getStripe } from '@/lib/stripe'
 import { getServiceClient } from '@/lib/supabase/service'
+import { isPortalAccessible } from '@/lib/tenant-portal'
 
 const toCents = (n: number) => Math.round(n * 100)
 
@@ -16,12 +17,15 @@ export async function POST(req: NextRequest) {
   // Validate portal_token → tenant
   const { data: tenant } = await db
     .from('tenants')
-    .select('id, owner_id, stripe_customer_id, first_name, last_name')
+    .select('id, owner_id, stripe_customer_id, first_name, last_name, status, profiles!owner_id(settings)')
     .eq('portal_token', portal_token)
     .single()
 
   if (!tenant) {
     return NextResponse.json({ error: 'Invalid portal token' }, { status: 403 })
+  }
+  if (!isPortalAccessible(tenant, Array.isArray(tenant.profiles) ? tenant.profiles[0] : tenant.profiles)) {
+    return NextResponse.json({ error: 'Portal access unavailable' }, { status: 403 })
   }
 
   // Get payment and verify it belongs to this tenant

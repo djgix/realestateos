@@ -129,9 +129,9 @@ export default function OnboardingPage() {
                     <label className="label">Type</label>
                     <select className="select" value={propType} onChange={e => setPropType(e.target.value)}>
                       <option value="single_family">Single Family</option>
-                      <option value="multi_family">Multi Family</option>
+                      <option value="multi_unit">Multi Unit</option>
                       <option value="condo">Condo</option>
-                      <option value="apartment">Apartment</option>
+                      <option value="townhouse">Townhouse</option>
                       <option value="commercial">Commercial</option>
                     </select>
                   </div>

@@ -40,19 +40,21 @@ export default function SellerSettingsPage() {
     setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('profiles').update({ full_name: form.full_name, phone: form.phone || null }).eq('id', user!.id)
-    toast.success('Saved!')
+    const { error } = await supabase.from('profiles').update({ full_name: form.full_name, phone: form.phone || null }).eq('id', user!.id)
+    if (error) toast.error('Failed to save changes')
+    else toast.success('Saved!')
     setLoading(false)
   }
 
   async function saveNotifications() {
     setSavingNotif(true)
-    await fetch('/api/landlord/settings/notifications', {
+    const res = await fetch('/api/landlord/settings/notifications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notifications }),
     })
-    toast.success('Notification preferences saved')
+    if (res.ok) toast.success('Notification preferences saved')
+    else toast.error('Failed to save notification preferences')
     setSavingNotif(false)
   }
 
