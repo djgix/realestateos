@@ -13,6 +13,15 @@ const CONTINGENCY_OPTIONS = [
   { id: 'title', label: 'Clear Title Contingency', desc: 'Sale contingent on clear title', recommended: false },
 ]
 
+// Single source of truth for "is the escalation clause complete", shared by the field
+// hint, the step gate, and the generated letter — whole dollars only (see the input
+// comment below for why: formatCurrency() rounds, so cents would create a mismatch).
+function isValidEscalation(form: { escalationIncrement: string; escalationCap: string }) {
+  const increment = Number(form.escalationIncrement)
+  const cap = Number(form.escalationCap)
+  return Number.isInteger(increment) && increment >= 1 && Number.isInteger(cap) && cap >= 1
+}
+
 export default function BuyerOfferPage() {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState({
@@ -150,15 +159,19 @@ export default function BuyerOfferPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="form-group">
                       <label className="label">Beat competing offers by</label>
-                      <input type="number" min="0.01" step="0.01" className="input" placeholder="2000" value={form.escalationIncrement} onChange={e => update('escalationIncrement', e.target.value)} />
+                      {/* Whole dollars only — formatCurrency() (used everywhere this value is
+                          displayed, including the generated letter) rounds to the nearest
+                          dollar, so accepting cents here would silently mismatch a cents value
+                          the buyer actually typed against what shows up in the letter. */}
+                      <input type="number" min="1" step="1" className="input" placeholder="2000" value={form.escalationIncrement} onChange={e => update('escalationIncrement', e.target.value)} />
                     </div>
                     <div className="form-group">
                       <label className="label">Maximum cap</label>
-                      <input type="number" min="0.01" step="0.01" className="input" placeholder="420000" value={form.escalationCap} onChange={e => update('escalationCap', e.target.value)} />
+                      <input type="number" min="1" step="1" className="input" placeholder="420000" value={form.escalationCap} onChange={e => update('escalationCap', e.target.value)} />
                     </div>
                   </div>
-                  {!(parseFloat(form.escalationIncrement) > 0 && parseFloat(form.escalationCap) > 0) && (
-                    <p className="text-xs text-yellow-400/80 mt-2">Enter both values to include the escalation clause in your letter.</p>
+                  {!isValidEscalation(form) && (
+                    <p className="text-xs text-yellow-400/80 mt-2">Enter both values as whole dollar amounts to include the escalation clause in your letter.</p>
                   )}
                 </div>
               )}
@@ -226,7 +239,7 @@ export default function BuyerOfferPage() {
                 { label: 'Closing Date', value: form.closingDate || '—' },
                 { label: 'Inspection Period', value: `${form.inspectionDays} days` },
                 { label: 'Contingencies', value: form.contingencies.join(', ') || 'None' },
-                { label: 'Escalation', value: form.escalation ? `Up to ${formatCurrency(parseFloat(form.escalationCap))}` : 'No' },
+                { label: 'Escalation', value: form.escalation && isValidEscalation(form) ? `Up to ${formatCurrency(Number(form.escalationCap))}` : 'No' },
               ].map(item => (
                 <div key={item.label} className="flex items-center justify-between py-3 border-b border-slate-800 last:border-0">
                   <span className="text-slate-500 text-sm">{item.label}</span>
@@ -270,8 +283,8 @@ export default function BuyerOfferPage() {
                     ['Closing Date', form.closingDate || '—'],
                     ['Inspection Period', `${form.inspectionDays} days`],
                     ['Contingencies', form.contingencies.join(', ') || 'None'],
-                    ...(form.escalation && parseFloat(form.escalationIncrement) > 0 && parseFloat(form.escalationCap) > 0
-                      ? [['Escalation Clause', `Beats competing offers by ${formatCurrency(parseFloat(form.escalationIncrement))}, up to ${formatCurrency(parseFloat(form.escalationCap))}`]]
+                    ...(form.escalation && isValidEscalation(form)
+                      ? [['Escalation Clause', `Beats competing offers by ${formatCurrency(Number(form.escalationIncrement))}, up to ${formatCurrency(Number(form.escalationCap))}`]]
                       : []),
                   ].map(([label, value]) => (
                     <tr key={label} style={{borderBottom: '1px solid #ddd'}}>
@@ -297,7 +310,7 @@ export default function BuyerOfferPage() {
           {step < STEPS.length - 1 ? (
             <button
               onClick={() => setStep(s => s + 1)}
-              disabled={step === 1 && form.escalation && !(parseFloat(form.escalationIncrement) > 0 && parseFloat(form.escalationCap) > 0)}
+              disabled={step === 1 && form.escalation && !isValidEscalation(form)}
               className="btn-buyer disabled:opacity-50"
             >
               Continue <ArrowRight className="w-4 h-4" />

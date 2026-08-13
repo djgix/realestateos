@@ -47,12 +47,15 @@ export async function POST(req: NextRequest) {
 
   if (event.type === 'payment_intent.payment_failed') {
     const pi = event.data.object as any
-    // Clear stripe_payment_intent_id (not just the status) so the collect routes' claim
-    // guard — which keys off this column being null — allows the payment to be reclaimed
-    // for a fresh attempt instead of staying permanently blocked by the failed intent's id.
+    // Deliberately does NOT clear stripe_payment_intent_id: this column is the only way
+    // a later payment_intent.succeeded event (Stripe reuses the same intent id across
+    // confirmation retries — a failed ACH attempt followed by a successful one on the
+    // same intent is a normal flow) can find this row. Clearing it here would make that
+    // later success match zero rows. The collect routes' claim guard instead allows
+    // reclaiming a row whose status is 'failed' even though its intent id is still set.
     await supabase
       .from('rent_payments')
-      .update({ status: 'failed', stripe_payment_intent_id: null })
+      .update({ status: 'failed' })
       .eq('stripe_payment_intent_id', pi.id)
   }
 

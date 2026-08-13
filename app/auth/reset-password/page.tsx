@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, Eye, EyeOff, CheckCircle } from 'lucide-react'
@@ -15,6 +15,20 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [dest, setDest] = useState<string | null>(null)
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (redirectTimer.current) clearTimeout(redirectTimer.current)
+  }, [])
+
+  function scheduleRedirect(target: string) {
+    setDest(target)
+    redirectTimer.current = setTimeout(() => router.push(target), 2000)
+  }
+
+  function handleContinueClick() {
+    if (redirectTimer.current) clearTimeout(redirectTimer.current)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -37,14 +51,15 @@ export default function ResetPasswordPage() {
         // recovery session is still active, and middleware redirects an authenticated
         // user away from /auth/* pages, so leaving them signed in here would bounce
         // them straight past /auth/login into the very dashboard guess we're avoiding.
-        await supabase.auth.signOut()
-        setDest('/auth/login')
-        setTimeout(() => router.push('/auth/login'), 2000)
+        // Default signOut() also calls Supabase's revoke endpoint, which can itself
+        // fail on a network error — fall back to a local-only signOut (no network
+        // dependency) so the browser's session is cleared either way.
+        const { error: signOutError } = await supabase.auth.signOut()
+        if (signOutError) await supabase.auth.signOut({ scope: 'local' })
+        scheduleRedirect('/auth/login')
         return
       }
-      const target = productDashboardPath(profile?.product)
-      setDest(target)
-      setTimeout(() => router.push(target), 2000)
+      scheduleRedirect(productDashboardPath(profile?.product))
     }
   }
 
@@ -68,7 +83,7 @@ export default function ResetPasswordPage() {
                 {dest === '/auth/login' ? 'Please sign in to continue.' : dest ? 'Redirecting you to your dashboard...' : 'Loading your account...'}
               </p>
               {dest && (
-                <Link href={dest} className="text-brand-400 hover:text-brand-300 text-sm">
+                <Link href={dest} onClick={handleContinueClick} className="text-brand-400 hover:text-brand-300 text-sm">
                   Continue now →
                 </Link>
               )}

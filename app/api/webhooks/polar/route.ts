@@ -48,13 +48,19 @@ export const POST = Webhooks({
         // shared with the subscription.created handler below. Polar doesn't guarantee
         // delivery order between the two events, and a plain read-then-write would let
         // both requests observe null and both send the welcome email.
-        const { data: claimed } = await supabase
+        const { data: claimed, error: claimErr } = await supabase
           .from('profiles')
           .update({ plan: planName, product, polar_customer_id: checkout.customerId })
           .eq('id', existingProfile.id)
           .is('polar_customer_id', null)
           .select()
           .maybeSingle()
+
+        // A genuine write error looks identical to "the other event already claimed it"
+        // (both return no row) unless we check the error explicitly — without this, a
+        // real DB failure would silently skip both the welcome email AND the plan/product
+        // update below, while still acking the webhook as handled.
+        if (claimErr) throw claimErr
 
         if (claimed) {
           if (claimed.email) {
@@ -63,7 +69,8 @@ export const POST = Webhooks({
         } else {
           // The other event already claimed it — still apply this event's plan/product
           // in case they differ, just without re-sending the welcome email.
-          await supabase.from('profiles').update({ plan: planName, product, polar_customer_id: checkout.customerId }).eq('id', existingProfile.id)
+          const { error: fallbackErr } = await supabase.from('profiles').update({ plan: planName, product, polar_customer_id: checkout.customerId }).eq('id', existingProfile.id)
+          if (fallbackErr) throw fallbackErr
         }
       }
 
@@ -104,7 +111,7 @@ export const POST = Webhooks({
         // Same atomic "first association" claim as checkout.updated above — whichever
         // event's UPDATE actually wins the WHERE polar_customer_id IS NULL race is the
         // one that sends the welcome email.
-        const { data: claimed } = await supabase
+        const { data: claimed, error: claimErr } = await supabase
           .from('profiles')
           .update({ plan: planName, polar_customer_id: sub.customerId })
           .eq('id', profile.id)
@@ -112,12 +119,17 @@ export const POST = Webhooks({
           .select()
           .maybeSingle()
 
+        // See the identical check in checkout.updated above — a real write error must
+        // not be treated as "the other event already claimed it".
+        if (claimErr) throw claimErr
+
         if (claimed) {
           if (claimed.email) {
             await sendWelcome({ email: claimed.email, name: claimed.full_name || 'there', product: claimed.product || 'landlord' })
           }
         } else if (profile.plan !== planName || profile.polar_customer_id !== sub.customerId) {
-          await supabase.from('profiles').update({ plan: planName, polar_customer_id: sub.customerId }).eq('id', profile.id)
+          const { error: fallbackErr } = await supabase.from('profiles').update({ plan: planName, polar_customer_id: sub.customerId }).eq('id', profile.id)
+          if (fallbackErr) throw fallbackErr
         }
       }
     }
