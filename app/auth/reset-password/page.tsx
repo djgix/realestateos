@@ -33,8 +33,13 @@ export default function ResetPasswordPage() {
         ? await supabase.from('profiles').select('product').eq('id', user.id).single()
         : { data: null, error: null }
       if (profileError || !user) {
-        // Don't guess a product dashboard on a failed lookup — let them navigate manually.
+        // Don't guess a product dashboard on a failed lookup. Sign out first — the
+        // recovery session is still active, and middleware redirects an authenticated
+        // user away from /auth/* pages, so leaving them signed in here would bounce
+        // them straight past /auth/login into the very dashboard guess we're avoiding.
+        await supabase.auth.signOut()
         setDest('/auth/login')
+        setTimeout(() => router.push('/auth/login'), 2000)
         return
       }
       const target = productDashboardPath(profile?.product)
@@ -60,7 +65,7 @@ export default function ResetPasswordPage() {
               <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
               <h2 className="font-display text-xl text-slate-200 mb-2">Password updated!</h2>
               <p className="text-slate-500 text-sm mb-4">
-                {dest ? 'Redirecting you to your dashboard...' : 'Loading your account...'}
+                {dest === '/auth/login' ? 'Please sign in to continue.' : dest ? 'Redirecting you to your dashboard...' : 'Loading your account...'}
               </p>
               {dest && (
                 <Link href={dest} className="text-brand-400 hover:text-brand-300 text-sm">

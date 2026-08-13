@@ -55,8 +55,11 @@ export async function GET(request: NextRequest) {
         if (profile.product === 'none') {
           const requestedProduct = searchParams.get('product')
           if (ALLOWED_PRODUCTS.includes(requestedProduct || '')) {
-            effectiveProduct = requestedProduct!
-            await supabase.from('profiles').update({ product: effectiveProduct }).eq('id', user.id)
+            const { error: backfillError } = await supabase.from('profiles').update({ product: requestedProduct }).eq('id', user.id)
+            // Only route to the requested product if the write actually landed —
+            // otherwise the profile is still 'none' and this redirect would claim a
+            // destination the stored data doesn't back up.
+            if (!backfillError) effectiveProduct = requestedProduct!
           }
         }
 

@@ -78,22 +78,35 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // The idempotency key is stable across retries of this same payment, so if the
+    // request is interrupted after Stripe creates the intent but before we get a
+    // response, a retry returns the original intent instead of creating a second one.
     const paymentIntent = await collectRent({
       amount: toCents(payment.total_amount),
       tenantCustomerId: tenant.stripe_customer_id,
       landlordAccountId: landlordProfile.stripe_account_id,
       propertyName: payment.properties?.name || 'Rental Property',
       tenantName: `${tenant.first_name} ${tenant.last_name}`,
+      idempotencyKey: `collect-${payment_id}`,
     })
 
     await getStripe().paymentIntents.update(paymentIntent.id, {
       metadata: { payment_id },
     })
 
-    await db
+    const { error: persistErr } = await db
       .from('rent_payments')
       .update({ stripe_payment_intent_id: paymentIntent.id })
       .eq('id', payment_id)
+
+    if (persistErr) {
+      // We can't record the intent, so the row would otherwise be stuck at the CLAIMING
+      // marker with a real Stripe intent the webhook could never associate with it.
+      // Cancel the intent (it's still unconfirmed at this point) and release the claim.
+      await getStripe().paymentIntents.cancel(paymentIntent.id).catch(() => {})
+      await db.from('rent_payments').update({ stripe_payment_intent_id: null }).eq('id', payment_id)
+      return NextResponse.json({ error: 'Failed to initiate payment. Please try again.' }, { status: 500 })
+    }
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,

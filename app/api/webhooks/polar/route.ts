@@ -41,23 +41,29 @@ export const POST = Webhooks({
       else plan = 'paid'
 
       const existingProfile = await resolveProfile(supabase, { userId: metadata?.user_id, email })
-      // Capture this before updating — it's the "have we welcomed this customer yet"
-      // signal shared with the subscription.created handler below, since Polar doesn't
-      // guarantee event delivery order between the two.
-      const isFirstPolarAssociation = !!existingProfile && !existingProfile.polar_customer_id
 
       if (existingProfile) {
-        await supabase
+        // Atomically claim "first association" via WHERE polar_customer_id IS NULL —
+        // this is the single source of truth for "have we welcomed this customer yet",
+        // shared with the subscription.created handler below. Polar doesn't guarantee
+        // delivery order between the two events, and a plain read-then-write would let
+        // both requests observe null and both send the welcome email.
+        const { data: claimed } = await supabase
           .from('profiles')
           .update({ plan: planName, product, polar_customer_id: checkout.customerId })
           .eq('id', existingProfile.id)
+          .is('polar_customer_id', null)
+          .select()
+          .maybeSingle()
 
-        if (isFirstPolarAssociation && existingProfile.email) {
-          await sendWelcome({
-            email: existingProfile.email,
-            name: existingProfile.full_name || 'there',
-            product: existingProfile.product || 'landlord',
-          })
+        if (claimed) {
+          if (claimed.email) {
+            await sendWelcome({ email: claimed.email, name: claimed.full_name || 'there', product })
+          }
+        } else {
+          // The other event already claimed it — still apply this event's plan/product
+          // in case they differ, just without re-sending the welcome email.
+          await supabase.from('profiles').update({ plan: planName, product, polar_customer_id: checkout.customerId }).eq('id', existingProfile.id)
         }
       }
 
@@ -95,24 +101,23 @@ export const POST = Webhooks({
         if (pid === process.env.NEXT_PUBLIC_POLAR_LANDLORD_GROWTH_ID) planName = 'growth'
         if (pid === process.env.NEXT_PUBLIC_POLAR_LANDLORD_PRO_ID) planName = 'pro'
 
-        // Same "first association" signal used in checkout.updated above — captured
-        // before the update below, since either event can be the one that actually
-        // attaches polar_customer_id first depending on delivery order.
-        const isFirstPolarAssociation = !profile.polar_customer_id
+        // Same atomic "first association" claim as checkout.updated above — whichever
+        // event's UPDATE actually wins the WHERE polar_customer_id IS NULL race is the
+        // one that sends the welcome email.
+        const { data: claimed } = await supabase
+          .from('profiles')
+          .update({ plan: planName, polar_customer_id: sub.customerId })
+          .eq('id', profile.id)
+          .is('polar_customer_id', null)
+          .select()
+          .maybeSingle()
 
-        if (profile.plan !== planName || profile.polar_customer_id !== sub.customerId) {
-          await supabase.from('profiles').update({
-            plan: planName,
-            polar_customer_id: sub.customerId,
-          }).eq('id', profile.id)
-        }
-
-        if (isFirstPolarAssociation && profile.email) {
-          await sendWelcome({
-            email: profile.email,
-            name: profile.full_name || 'there',
-            product: profile.product || 'landlord',
-          })
+        if (claimed) {
+          if (claimed.email) {
+            await sendWelcome({ email: claimed.email, name: claimed.full_name || 'there', product: claimed.product || 'landlord' })
+          }
+        } else if (profile.plan !== planName || profile.polar_customer_id !== sub.customerId) {
+          await supabase.from('profiles').update({ plan: planName, polar_customer_id: sub.customerId }).eq('id', profile.id)
         }
       }
     }

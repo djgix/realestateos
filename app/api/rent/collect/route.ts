@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 const toCents = (n: number) => Math.round(n * 100)
-import { collectRent } from '@/lib/stripe'
+import { collectRent, getStripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
@@ -56,19 +56,32 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Create payment intent
+    // Create payment intent. The idempotency key is stable across retries of this same
+    // payment, so if the request is interrupted after Stripe creates the intent but
+    // before we get a response, a retry returns the original intent instead of creating
+    // a second one.
     const paymentIntent = await collectRent({
       amount: toCents(payment.total_amount),
       tenantCustomerId,
       landlordAccountId,
       propertyName: 'Rental Property',
       tenantName: `${payment.tenants.first_name} ${payment.tenants.last_name}`,
+      idempotencyKey: `collect-${paymentId}`,
     })
 
     // Update payment record with the real intent ID
-    await supabase.from('rent_payments')
+    const { error: persistErr } = await supabase.from('rent_payments')
       .update({ stripe_payment_intent_id: paymentIntent.id })
       .eq('id', paymentId)
+
+    if (persistErr) {
+      // We can't record the intent, so the row would otherwise be stuck at the CLAIMING
+      // marker with a real Stripe intent the webhook could never associate with it.
+      // Cancel the intent (it's still unconfirmed at this point) and release the claim.
+      await getStripe().paymentIntents.cancel(paymentIntent.id).catch(() => {})
+      await supabase.from('rent_payments').update({ stripe_payment_intent_id: null }).eq('id', paymentId)
+      return NextResponse.json({ error: 'Failed to initiate payment. Please try again.' }, { status: 500 })
+    }
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,

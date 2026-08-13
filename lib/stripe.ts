@@ -49,6 +49,7 @@ export async function collectRent({
   propertyName,
   tenantName,
   platformFeePercent = 0, // We take 0% — landlord keeps everything
+  idempotencyKey,
 }: {
   amount: number
   tenantCustomerId: string
@@ -56,6 +57,11 @@ export async function collectRent({
   propertyName: string
   tenantName: string
   platformFeePercent?: number
+  // Pass a value stable across retries for the same collection attempt (e.g. the
+  // rent_payments row id) so a network failure between Stripe creating the intent and
+  // this function returning can't result in two intents for one payment — a retry with
+  // the same key returns the original intent instead of creating a new one.
+  idempotencyKey?: string
 }) {
   const platformFee = Math.round(amount * (platformFeePercent / 100))
 
@@ -74,7 +80,7 @@ export async function collectRent({
       property_name: propertyName,
     },
     confirm: false,
-  })
+  }, idempotencyKey ? { idempotencyKey } : undefined)
 
   return paymentIntent
 }

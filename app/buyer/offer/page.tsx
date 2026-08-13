@@ -146,15 +146,20 @@ export default function BuyerOfferPage() {
                 </div>
               </label>
               {form.escalation && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <div className="form-group">
-                    <label className="label">Beat competing offers by</label>
-                    <input type="number" className="input" placeholder="2000" value={form.escalationIncrement} onChange={e => update('escalationIncrement', e.target.value)} />
+                <div className="mt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="form-group">
+                      <label className="label">Beat competing offers by</label>
+                      <input type="number" min="0.01" step="0.01" className="input" placeholder="2000" value={form.escalationIncrement} onChange={e => update('escalationIncrement', e.target.value)} />
+                    </div>
+                    <div className="form-group">
+                      <label className="label">Maximum cap</label>
+                      <input type="number" min="0.01" step="0.01" className="input" placeholder="420000" value={form.escalationCap} onChange={e => update('escalationCap', e.target.value)} />
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label className="label">Maximum cap</label>
-                    <input type="number" className="input" placeholder="420000" value={form.escalationCap} onChange={e => update('escalationCap', e.target.value)} />
-                  </div>
+                  {!(parseFloat(form.escalationIncrement) > 0 && parseFloat(form.escalationCap) > 0) && (
+                    <p className="text-xs text-yellow-400/80 mt-2">Enter both values to include the escalation clause in your letter.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -194,16 +199,12 @@ export default function BuyerOfferPage() {
             <p className="text-slate-500 text-sm mb-6">A heartfelt letter can tip the scales in your favor when offers are close. Tell the seller why you love their home.</p>
             <div className="form-group">
               <label className="label">Your letter (optional but powerful)</label>
-              <textarea rows={10} className="textarea" placeholder={`Dear Seller,
+              <p className="text-xs text-slate-600 mb-2">
+                Just write the body — a greeting and your signature are added automatically in the generated letter.
+              </p>
+              <textarea rows={10} className="textarea" placeholder={`My name is ${form.buyerName || '[Your Name]'} and I am writing to express my sincere interest in your home at ${form.address || '[address]'}.
 
-My name is ${form.buyerName || '[Your Name]'} and I am writing to express my sincere interest in your home at ${form.address || '[address]'}.
-
-[Tell them why you love the home, what you plan to do with it, and why you'd be the ideal buyer. Keep it genuine and personal — 3–4 paragraphs works best.]
-
-Thank you for considering my offer.
-
-Sincerely,
-${form.buyerName || '[Your Name]'}`}
+[Tell them why you love the home, what you plan to do with it, and why you'd be the ideal buyer. Keep it genuine and personal — 3–4 paragraphs works best.]`}
                 value={form.coverLetter}
                 onChange={e => update('coverLetter', e.target.value)}
               />
@@ -251,19 +252,14 @@ ${form.buyerName || '[Your Name]'}`}
               `}} />
               <p style={{marginBottom: '24px'}}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
               <p style={{marginBottom: '16px'}}>Re: Offer to Purchase — {form.address || '[Property Address]'}, {form.city}, {form.state}</p>
-              {form.coverLetter ? (
-                // The cover-letter template already includes its own greeting and sign-off
-                // (see the placeholder in step 3), so a filled-in letter is rendered whole
-                // rather than wrapped in another greeting/closing.
-                <p style={{whiteSpace: 'pre-wrap', marginBottom: '24px'}}>{form.coverLetter}</p>
-              ) : (
-                <>
-                  <p style={{marginBottom: '16px'}}>Dear Seller,</p>
-                  <p style={{marginBottom: '16px'}}>
-                    I am writing to formally present an offer of {formatCurrency(offerNum)} for your property at {form.address}, {form.city}, {form.state}.
-                  </p>
-                </>
-              )}
+              <p style={{marginBottom: '16px'}}>Dear Seller,</p>
+              {/* The step-3 field only collects the letter's body (its label and
+                  placeholder say so explicitly) — the greeting and signature below are
+                  always generated so there's exactly one of each, regardless of what
+                  the buyer types. */}
+              <p style={{whiteSpace: 'pre-wrap', marginBottom: '16px'}}>
+                {form.coverLetter || `I am writing to formally present an offer of ${formatCurrency(offerNum)} for your property at ${form.address}, ${form.city}, ${form.state}.`}
+              </p>
               <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '24px'}}>
                 <tbody>
                   {[
@@ -285,12 +281,8 @@ ${form.buyerName || '[Your Name]'}`}
                   ))}
                 </tbody>
               </table>
-              {!form.coverLetter && (
-                <>
-                  <p style={{marginBottom: '8px'}}>Thank you for considering my offer.</p>
-                  <p style={{marginBottom: '48px'}}>Sincerely,</p>
-                </>
-              )}
+              <p style={{marginBottom: '8px'}}>Thank you for considering my offer.</p>
+              <p style={{marginBottom: '48px'}}>Sincerely,</p>
               <p>{form.buyerName || '[Your Name]'}</p>
               {form.buyerEmail && <p>{form.buyerEmail}</p>}
             </div>
@@ -303,7 +295,11 @@ ${form.buyerName || '[Your Name]'}`}
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
           {step < STEPS.length - 1 ? (
-            <button onClick={() => setStep(s => s + 1)} className="btn-buyer">
+            <button
+              onClick={() => setStep(s => s + 1)}
+              disabled={step === 1 && form.escalation && !(parseFloat(form.escalationIncrement) > 0 && parseFloat(form.escalationCap) > 0)}
+              className="btn-buyer disabled:opacity-50"
+            >
               Continue <ArrowRight className="w-4 h-4" />
             </button>
           ) : null}
