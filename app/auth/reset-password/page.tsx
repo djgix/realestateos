@@ -16,6 +16,7 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false)
   const [dest, setDest] = useState<string | null>(null)
   const [sessionStuck, setSessionStuck] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => () => {
@@ -23,12 +24,42 @@ export default function ResetPasswordPage() {
   }, [])
 
   function scheduleRedirect(target: string) {
+    setSessionStuck(false)
     setDest(target)
     redirectTimer.current = setTimeout(() => router.push(target), 2000)
   }
 
   function handleContinueClick() {
     if (redirectTimer.current) clearTimeout(redirectTimer.current)
+  }
+
+  // Looks up the profile for the already-authenticated session and routes to its
+  // dashboard. Password update itself doesn't call this directly — it always leaves a
+  // valid session (that's the whole point of the recovery flow), so on a lookup failure
+  // there is nothing to sign out of or route around; retrying this same lookup is the
+  // correct recovery action, not a forced local sign-out (which, per auth-js, isn't
+  // actually reliable without a network round-trip anyway) or asking them to close the tab.
+  async function checkAccountAndRedirect() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      // No session at all (rare here, but possible if it expired mid-flow) — this is the
+      // one case a plain sign-in redirect is actually correct.
+      scheduleRedirect('/auth/login')
+      return
+    }
+    const { data: profile, error: profileError } = await supabase.from('profiles').select('product').eq('id', user.id).single()
+    if (profileError) {
+      setSessionStuck(true)
+      return
+    }
+    scheduleRedirect(productDashboardPath(profile?.product))
+  }
+
+  async function handleRetry() {
+    setRetrying(true)
+    await checkAccountAndRedirect()
+    setRetrying(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -43,30 +74,7 @@ export default function ResetPasswordPage() {
       setLoading(false)
     } else {
       setDone(true)
-      const { data: { user } } = await supabase.auth.getUser()
-      const { data: profile, error: profileError } = user
-        ? await supabase.from('profiles').select('product').eq('id', user.id).single()
-        : { data: null, error: null }
-      if (profileError || !user) {
-        // Don't guess a product dashboard on a failed lookup. Sign out first — the
-        // recovery session is still active, and middleware redirects an authenticated
-        // user away from /auth/* pages, so leaving them signed in here would bounce
-        // them straight past /auth/login into the very dashboard guess we're avoiding.
-        // signOut() (even with scope:'local') still calls Supabase's revoke endpoint
-        // internally and only clears the local session if that call resolves — a plain
-        // network failure there leaves the session intact with no reliable client-side
-        // way to force a clear. So verify it actually worked before ever pointing them
-        // at /auth/login; if it didn't, don't auto-redirect into that same bounce.
-        await supabase.auth.signOut()
-        const { data: { user: stillUser } } = await supabase.auth.getUser()
-        if (stillUser) {
-          setSessionStuck(true)
-          return
-        }
-        scheduleRedirect('/auth/login')
-        return
-      }
-      scheduleRedirect(productDashboardPath(profile?.product))
+      await checkAccountAndRedirect()
     }
   }
 
@@ -86,9 +94,17 @@ export default function ResetPasswordPage() {
             <div className="text-center py-4">
               <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
               <h2 className="font-display text-xl text-slate-200 mb-2">Password updated!</h2>
-              <p className="text-slate-500 text-sm">
-                Please close this tab and sign in again from the login page.
+              <p className="text-slate-500 text-sm mb-4">
+                We couldn't load your account just now. You're still signed in — try again, or go to your dashboard.
               </p>
+              <div className="flex flex-col items-center gap-2">
+                <button onClick={handleRetry} disabled={retrying} className="btn-primary py-2 px-6">
+                  {retrying ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Try again'}
+                </button>
+                <Link href="/landlord/dashboard" className="text-brand-400 hover:text-brand-300 text-sm">
+                  Go to dashboard →
+                </Link>
+              </div>
             </div>
           ) : done ? (
             <div className="text-center py-4">

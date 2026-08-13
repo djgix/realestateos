@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { collectRent, getStripe } from '@/lib/stripe'
 import { getServiceClient } from '@/lib/supabase/service'
 import { isPortalAccessible } from '@/lib/tenant-portal'
+import { releaseClaim } from '@/lib/rent-collection'
 
 const toCents = (n: number) => Math.round(n * 100)
 
@@ -112,12 +113,14 @@ export async function POST(req: NextRequest) {
       .eq('id', payment_id)
 
     if (persistErr) {
-      // Deliberately don't cancel the intent here: canceling would poison this same
-      // idempotency key for the next retry (Stripe would keep returning the now-dead
-      // canceled intent). Release the claim back to its pre-claim value so a retry with
-      // the same key can recover this intent once persistence works — otherwise the row
-      // stays stuck at the CLAIMING marker and every retry gets rejected as 409 forever.
-      await db.from('rent_payments').update({ stripe_payment_intent_id: previousIntentId }).eq('id', payment_id)
+      // persistErr means WE didn't get a clean confirmation — the write itself may still
+      // have landed (response lost on the way back). Only roll back while the row is
+      // still exactly CLAIMING: if it already holds paymentIntent.id, the write actually
+      // succeeded, and overwriting it back to previousIntentId here would sever the
+      // webhook's only way to find this (possibly now-charged) payment. Deliberately
+      // don't cancel the intent either: canceling would poison this same idempotency key
+      // for the next retry (Stripe would keep returning the now-dead canceled intent).
+      await releaseClaim(db, payment_id, previousIntentId, CLAIMING)
       return NextResponse.json({ error: 'Failed to initiate payment. Please try again.' }, { status: 500 })
     }
 
@@ -130,7 +133,7 @@ export async function POST(req: NextRequest) {
     // payment can be retried. The idempotency key is unaffected either way: if Stripe
     // never actually created an intent, the same key is free to use again; if it did and
     // the response was merely lost, the same key safely returns that intent next time.
-    await db.from('rent_payments').update({ stripe_payment_intent_id: previousIntentId }).eq('id', payment_id)
+    await releaseClaim(db, payment_id, previousIntentId, CLAIMING)
     return NextResponse.json({ error: 'Failed to initiate payment. Please try again.' }, { status: 500 })
   }
 }
