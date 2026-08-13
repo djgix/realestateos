@@ -4,20 +4,20 @@
 // but actually landed server-side, the row already holds that real id and this guard
 // prevents clobbering it back to the stale previous value (which would sever the
 // webhook's only way to find a payment Stripe may have actually charged).
-// Best-effort: retries once on its own write failure, then gives up silently — there's no
-// further recovery action available from within this request.
+// Best-effort, single attempt: retrying this write is deliberately NOT done — a retry
+// loop reusing the same claimingMarker would have its own race if the first attempt's
+// write actually committed (just lost its response) and a different request then claimed
+// the now-released row before the retry ran, since the retry's WHERE clause can't tell
+// "still my claim" apart from "someone else's brand new claim" once both are 'claiming'.
 export async function releaseClaim(
   supabase: any,
   paymentId: string,
   previousIntentId: string | null,
   claimingMarker: string
 ) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { error } = await supabase
-      .from('rent_payments')
-      .update({ stripe_payment_intent_id: previousIntentId })
-      .eq('id', paymentId)
-      .eq('stripe_payment_intent_id', claimingMarker)
-    if (!error) return
-  }
+  await supabase
+    .from('rent_payments')
+    .update({ stripe_payment_intent_id: previousIntentId })
+    .eq('id', paymentId)
+    .eq('stripe_payment_intent_id', claimingMarker)
 }

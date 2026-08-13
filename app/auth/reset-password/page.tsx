@@ -95,16 +95,14 @@ export default function ResetPasswordPage() {
               <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
               <h2 className="font-display text-xl text-slate-200 mb-2">Password updated!</h2>
               <p className="text-slate-500 text-sm mb-4">
-                We couldn't load your account just now. You're still signed in — try again, or go to your dashboard.
+                We couldn't load your account just now. You're still signed in — try again.
               </p>
-              <div className="flex flex-col items-center gap-2">
-                <button onClick={handleRetry} disabled={retrying} className="btn-primary py-2 px-6">
-                  {retrying ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Try again'}
-                </button>
-                <Link href="/landlord/dashboard" className="text-brand-400 hover:text-brand-300 text-sm">
-                  Go to dashboard →
-                </Link>
-              </div>
+              {/* No generic "go to dashboard" fallback here: which dashboard is exactly
+                  what the failed lookup below couldn't tell us, so a hardcoded link would
+                  misroute a seller or buyer straight to the landlord dashboard. */}
+              <button onClick={handleRetry} disabled={retrying} className="btn-primary py-2 px-6">
+                {retrying ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Try again'}
+              </button>
             </div>
           ) : done ? (
             <div className="text-center py-4">
