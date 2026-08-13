@@ -67,11 +67,15 @@ export async function POST(req: NextRequest) {
   // SAME intent eventually succeeds).
   const CLAIMING = 'claiming'
   const previousIntentId: string | null = payment.stripe_payment_intent_id ?? null
+  // stripe_payment_intent_id.neq.claiming on the failed-row branch matters: without it,
+  // two concurrent claim attempts on the same failed row would both match (the marker
+  // write only changes stripe_payment_intent_id, not status, so status='failed' alone
+  // stays true for both after the first one commits) and both would create PaymentIntents.
   const { data: claimed, error: claimErr } = await db
     .from('rent_payments')
     .update({ stripe_payment_intent_id: CLAIMING })
     .eq('id', payment_id)
-    .or('stripe_payment_intent_id.is.null,status.eq.failed')
+    .or('stripe_payment_intent_id.is.null,and(status.eq.failed,stripe_payment_intent_id.neq.claiming)')
     .or('status.is.null,status.neq.paid')
     .select()
     .maybeSingle()
@@ -110,8 +114,10 @@ export async function POST(req: NextRequest) {
     if (persistErr) {
       // Deliberately don't cancel the intent here: canceling would poison this same
       // idempotency key for the next retry (Stripe would keep returning the now-dead
-      // canceled intent). Leaving it unconfirmed and live means a retry with the same
-      // key safely recovers it once persistence works.
+      // canceled intent). Release the claim back to its pre-claim value so a retry with
+      // the same key can recover this intent once persistence works — otherwise the row
+      // stays stuck at the CLAIMING marker and every retry gets rejected as 409 forever.
+      await db.from('rent_payments').update({ stripe_payment_intent_id: previousIntentId }).eq('id', payment_id)
       return NextResponse.json({ error: 'Failed to initiate payment. Please try again.' }, { status: 500 })
     }
 

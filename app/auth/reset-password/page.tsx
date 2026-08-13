@@ -15,6 +15,7 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [dest, setDest] = useState<string | null>(null)
+  const [sessionStuck, setSessionStuck] = useState(false)
   const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => () => {
@@ -51,11 +52,17 @@ export default function ResetPasswordPage() {
         // recovery session is still active, and middleware redirects an authenticated
         // user away from /auth/* pages, so leaving them signed in here would bounce
         // them straight past /auth/login into the very dashboard guess we're avoiding.
-        // Default signOut() also calls Supabase's revoke endpoint, which can itself
-        // fail on a network error — fall back to a local-only signOut (no network
-        // dependency) so the browser's session is cleared either way.
-        const { error: signOutError } = await supabase.auth.signOut()
-        if (signOutError) await supabase.auth.signOut({ scope: 'local' })
+        // signOut() (even with scope:'local') still calls Supabase's revoke endpoint
+        // internally and only clears the local session if that call resolves — a plain
+        // network failure there leaves the session intact with no reliable client-side
+        // way to force a clear. So verify it actually worked before ever pointing them
+        // at /auth/login; if it didn't, don't auto-redirect into that same bounce.
+        await supabase.auth.signOut()
+        const { data: { user: stillUser } } = await supabase.auth.getUser()
+        if (stillUser) {
+          setSessionStuck(true)
+          return
+        }
         scheduleRedirect('/auth/login')
         return
       }
@@ -75,7 +82,15 @@ export default function ResetPasswordPage() {
         </div>
 
         <div className="card p-8">
-          {done ? (
+          {sessionStuck ? (
+            <div className="text-center py-4">
+              <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+              <h2 className="font-display text-xl text-slate-200 mb-2">Password updated!</h2>
+              <p className="text-slate-500 text-sm">
+                Please close this tab and sign in again from the login page.
+              </p>
+            </div>
+          ) : done ? (
             <div className="text-center py-4">
               <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
               <h2 className="font-display text-xl text-slate-200 mb-2">Password updated!</h2>
